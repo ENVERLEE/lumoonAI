@@ -55,6 +55,7 @@ AUTH_USER_MODEL = 'core.CustomUser'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Railway 배포용 정적 파일 처리
     'corsheaders.middleware.CorsMiddleware',  # CORS 처리를 최상단에
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -140,9 +141,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Railway 배포용
 STATICFILES_DIRS = [
     # Frontend files removed - using Next.js now
 ]
+
+# WhiteNoise 설정 (Railway 배포용)
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -193,6 +198,10 @@ ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY', '')
 PERPLEXITY_API_KEY = os.getenv('PERPLEXITY_API_KEY', '')
 DEFAULT_LLM_PROVIDER = os.getenv('DEFAULT_LLM_PROVIDER', 'openai')
+
+# Pinecone (Vector DB) 설정
+PINECONE_API_KEY = os.getenv('PINECONE_API_KEY', '')
+PINECONE_INDEX_NAME = os.getenv('PINECONE_INDEX_NAME', 'prompt-mate-memories')
 
 # Logging 설정
 LOGGING = {

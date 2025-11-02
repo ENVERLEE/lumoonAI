@@ -24,8 +24,8 @@ django-redis>=5.4.0
 # CORS
 django-cors-headers>=4.3.0
 
-# RAG System
-faiss-cpu>=1.7.4
+# RAG System - Pinecone (클라우드 벡터 DB)
+pinecone-client>=5.0.0
 numpy>=1.24.0
 
 # Production Server

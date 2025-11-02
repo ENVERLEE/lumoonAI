@@ -2,23 +2,23 @@
 """
 RAG (Retrieval-Augmented Generation) Manager
 
-FAISS를 사용한 벡터 검색 및 대화 메모리 관리
+Pinecone을 사용한 벡터 검색 및 대화 메모리 관리
 OpenAI Embeddings를 사용하여 대화 내용을 임베딩
 """
 
+import json
 import logging
 import os
-import pickle
-import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from django.conf import settings
 from django.core.cache import cache
 
 try:
-    import faiss
+    from pinecone import Pinecone, ServerlessSpec
+    PINECONE_AVAILABLE = True
 except ImportError:
-    faiss = None
-    logging.warning("FAISS가 설치되지 않았습니다. 'pip install faiss-cpu'를 실행하세요.")
+    PINECONE_AVAILABLE = False
+    logging.warning("Pinecone이 설치되지 않았습니다. 'pip install pinecone-client'를 실행하세요.")
 
 from openai import OpenAI
 
@@ -31,14 +31,12 @@ class RAGManager:
     """
     RAG Manager 클래스
     
-    사용자의 대화 기록을 임베딩하고 FAISS를 사용하여
+    사용자의 대화 기록을 임베딩하고 Pinecone을 사용하여
     유사도 기반 검색을 수행합니다.
     """
     
     EMBEDDING_MODEL = "text-embedding-3-small"
     EMBEDDING_DIM = 1536  # text-embedding-3-small의 차원
-    # Railway 영구 볼륨 경로 사용 (없으면 기본 경로)
-    INDEX_DIR = os.getenv('RAILWAY_VOLUME_MOUNT_PATH', os.path.join(settings.BASE_DIR, 'faiss_indexes'))
     TOP_K = 5  # 검색할 유사 대화 수
     
     def __init__(self, user: Optional[CustomUser] = None):
@@ -46,95 +44,81 @@ class RAGManager:
         RAG Manager 초기화
         
         Args:
-            user: 사용자 객체 (유저별 인덱스 관리)
+            user: 사용자 객체 (유저별 네임스페이스 관리)
         """
         self.user = user
         self.client = None
+        self.pinecone = None
+        self.index = None
         
         # OpenAI API 키 확인
-        api_key = settings.OPENAI_API_KEY
+        api_key = getattr(settings, 'OPENAI_API_KEY', '')
         if api_key:
             self.client = OpenAI(api_key=api_key)
         else:
             logger.warning("OpenAI API 키가 설정되지 않았습니다. RAG 기능이 제한됩니다.")
         
-        # FAISS 인덱스 초기화
-        self.index = None
-        self.index_to_memory_id = []  # 인덱스 ID -> ConversationMemory ID 매핑
-        
-        if faiss and user:
-            self._load_or_create_index()
+        # Pinecone 초기화
+        if PINECONE_AVAILABLE:
+            pinecone_api_key = os.getenv('PINECONE_API_KEY') or getattr(settings, 'PINECONE_API_KEY', '')
+            if pinecone_api_key:
+                try:
+                    self.pinecone = Pinecone(api_key=pinecone_api_key)
+                    self._initialize_index()
+                    logger.info("Pinecone 초기화 완료")
+                except Exception as e:
+                    logger.error(f"Pinecone 초기화 실패: {e}")
+                    self.pinecone = None
+            else:
+                logger.warning("Pinecone API 키가 설정되지 않았습니다. RAG 기능이 제한됩니다.")
+        else:
+            logger.warning("Pinecone 라이브러리가 설치되지 않았습니다.")
     
-    def _get_index_path(self) -> str:
-        """사용자별 FAISS 인덱스 파일 경로"""
-        # INDEX_DIR은 이미 설정되어 있음 (Railway 볼륨 경로 또는 기본 경로)
-        index_dir = self.INDEX_DIR if isinstance(self.INDEX_DIR, str) else str(self.INDEX_DIR)
-        if not os.path.exists(index_dir):
-            os.makedirs(index_dir, exist_ok=True)
-        
+    def _get_index_name(self) -> str:
+        """Pinecone 인덱스 이름"""
+        return os.getenv('PINECONE_INDEX_NAME', 'prompt-mate-memories')
+    
+    def _get_namespace(self) -> str:
+        """사용자별 네임스페이스"""
         if self.user:
-            return os.path.join(index_dir, f"user_{self.user.id}.index")
+            return f"user_{self.user.id}"
         else:
-            return os.path.join(index_dir, "global.index")
+            return "global"
     
-    def _get_mapping_path(self) -> str:
-        """인덱스 매핑 파일 경로"""
-        index_dir = self.INDEX_DIR if isinstance(self.INDEX_DIR, str) else str(self.INDEX_DIR)
-        if self.user:
-            return os.path.join(index_dir, f"user_{self.user.id}_mapping.pkl")
-        else:
-            return os.path.join(index_dir, "global_mapping.pkl")
-    
-    def _load_or_create_index(self):
-        """FAISS 인덱스 로드 또는 생성"""
-        if not faiss:
-            logger.error("FAISS가 설치되지 않았습니다.")
+    def _initialize_index(self):
+        """Pinecone 인덱스 초기화"""
+        if not self.pinecone:
             return
         
-        index_path = self._get_index_path()
-        mapping_path = self._get_mapping_path()
-        
-        if os.path.exists(index_path) and os.path.exists(mapping_path):
-            try:
-                # 기존 인덱스 로드
-                self.index = faiss.read_index(index_path)
-                with open(mapping_path, 'rb') as f:
-                    self.index_to_memory_id = pickle.load(f)
-                logger.info(f"FAISS 인덱스 로드: {index_path}, 벡터 수: {self.index.ntotal}")
-            except Exception as e:
-                logger.error(f"인덱스 로드 실패: {e}")
-                self._create_new_index()
-        else:
-            self._create_new_index()
-    
-    def _create_new_index(self):
-        """새 FAISS 인덱스 생성"""
-        if not faiss:
-            return
-        
-        # L2 거리 기반 인덱스 생성
-        self.index = faiss.IndexFlatL2(self.EMBEDDING_DIM)
-        self.index_to_memory_id = []
-        logger.info(f"새 FAISS 인덱스 생성: 차원={self.EMBEDDING_DIM}")
-    
-    def _save_index(self):
-        """FAISS 인덱스 저장"""
-        if not faiss or not self.index:
-            return
+        index_name = self._get_index_name()
         
         try:
-            index_path = self._get_index_path()
-            mapping_path = self._get_mapping_path()
+            # 인덱스 목록 확인
+            existing_indexes = [index.name for index in self.pinecone.list_indexes()]
             
-            faiss.write_index(self.index, index_path)
-            with open(mapping_path, 'wb') as f:
-                pickle.dump(self.index_to_memory_id, f)
+            if index_name not in existing_indexes:
+                # 인덱스 생성 (서버리스)
+                logger.info(f"Pinecone 인덱스 생성: {index_name}")
+                self.pinecone.create_index(
+                    name=index_name,
+                    dimension=self.EMBEDDING_DIM,
+                    metric="cosine",
+                    spec=ServerlessSpec(
+                        cloud="aws",
+                        region="us-east-1"
+                    )
+                )
+                logger.info(f"인덱스 {index_name} 생성 완료")
             
-            logger.info(f"FAISS 인덱스 저장: {index_path}")
+            # 인덱스 연결
+            self.index = self.pinecone.Index(index_name)
+            logger.info(f"Pinecone 인덱스 연결: {index_name}")
+            
         except Exception as e:
-            logger.error(f"인덱스 저장 실패: {e}")
+            logger.error(f"Pinecone 인덱스 초기화 실패: {e}")
+            self.index = None
     
-    def create_embedding(self, text: str) -> Optional[np.ndarray]:
+    def create_embedding(self, text: str) -> Optional[List[float]]:
         """
         텍스트를 임베딩 벡터로 변환
         
@@ -142,7 +126,7 @@ class RAGManager:
             text: 임베딩할 텍스트
         
         Returns:
-            임베딩 벡터 (numpy array) 또는 None
+            임베딩 벡터 (리스트) 또는 None
         """
         if not self.client:
             logger.error("OpenAI 클라이언트가 초기화되지 않았습니다.")
@@ -153,7 +137,7 @@ class RAGManager:
             cache_key = f"embedding_{hash(text)}"
             cached = cache.get(cache_key)
             if cached is not None:
-                return np.frombuffer(cached, dtype=np.float32)
+                return cached
             
             # OpenAI API 호출
             response = self.client.embeddings.create(
@@ -161,10 +145,10 @@ class RAGManager:
                 input=text
             )
             
-            embedding = np.array(response.data[0].embedding, dtype=np.float32)
+            embedding = response.data[0].embedding
             
             # 캐시 저장 (1시간)
-            cache.set(cache_key, embedding.tobytes(), 3600)
+            cache.set(cache_key, embedding, 3600)
             
             return embedding
         
@@ -209,12 +193,15 @@ class RAGManager:
         
         # DB에 저장
         try:
+            # 임베딩을 바이트로 변환 (DB 저장용)
+            embedding_bytes = json.dumps(embedding).encode('utf-8')
+            
             memory = ConversationMemory.objects.create(
                 user=self.user,
                 conversation=conversation,
                 message=message,
                 content=content,
-                embedding_vector=embedding.tobytes(),
+                embedding_vector=embedding_bytes,
                 metadata={
                     'model': self.EMBEDDING_MODEL,
                     'dimension': self.EMBEDDING_DIM,
@@ -222,13 +209,31 @@ class RAGManager:
                 }
             )
             
-            # FAISS 인덱스에 추가
-            if faiss and self.index is not None:
-                self.index.add(embedding.reshape(1, -1))
-                self.index_to_memory_id.append(str(memory.id))
-                self._save_index()
-            
-            logger.info(f"메모리 추가: {memory.id}, 인덱스 크기: {self.index.ntotal if self.index else 0}")
+            # Pinecone에 벡터 추가
+            if self.index is not None:
+                try:
+                    namespace = self._get_namespace()
+                    vector_id = str(memory.id)
+                    
+                    # 메타데이터 준비
+                    metadata = {
+                        'conversation_id': str(conversation.id),
+                        'conversation_title': conversation.title[:100] if conversation.title else '',
+                        'content': content[:500],  # Pinecone 메타데이터는 제한적
+                        'created_at': memory.created_at.isoformat(),
+                    }
+                    
+                    if message:
+                        metadata['message_id'] = str(message.id)
+                    
+                    self.index.upsert(
+                        vectors=[(vector_id, embedding, metadata)],
+                        namespace=namespace
+                    )
+                    
+                    logger.info(f"Pinecone에 벡터 추가: {vector_id}, 네임스페이스: {namespace}")
+                except Exception as e:
+                    logger.error(f"Pinecone 벡터 추가 실패: {e}")
             
             return memory
         
@@ -251,12 +256,8 @@ class RAGManager:
         Returns:
             유사 대화 목록 (메타데이터 포함)
         """
-        if not self.index or self.index.ntotal == 0:
-            logger.info("인덱스가 비어있습니다.")
-            return []
-        
-        if not faiss:
-            logger.error("FAISS가 설치되지 않았습니다.")
+        if not self.index:
+            logger.info("Pinecone 인덱스가 초기화되지 않았습니다.")
             return []
         
         top_k = top_k or self.TOP_K
@@ -267,31 +268,40 @@ class RAGManager:
             return []
         
         try:
-            # FAISS 검색
-            query_embedding = query_embedding.reshape(1, -1)
-            distances, indices = self.index.search(query_embedding, top_k)
+            namespace = self._get_namespace()
+            
+            # Pinecone 검색
+            search_results = self.index.query(
+                vector=query_embedding,
+                top_k=top_k,
+                namespace=namespace,
+                include_metadata=True
+            )
             
             results = []
-            for dist, idx in zip(distances[0], indices[0]):
-                if idx == -1:  # FAISS가 충분한 결과를 찾지 못한 경우
-                    continue
-                
-                memory_id = self.index_to_memory_id[idx]
-                
-                try:
-                    memory = ConversationMemory.objects.get(id=memory_id)
-                    results.append({
-                        'memory_id': str(memory.id),
-                        'conversation_id': str(memory.conversation.id),
-                        'conversation_title': memory.conversation.title,
-                        'content': memory.content,
-                        'distance': float(dist),
-                        'similarity': 1.0 / (1.0 + float(dist)),  # 유사도 점수
-                        'created_at': memory.created_at.isoformat(),
-                    })
-                except ConversationMemory.DoesNotExist:
-                    logger.warning(f"메모리 {memory_id}를 찾을 수 없습니다.")
-                    continue
+            if search_results.matches:
+                for match in search_results.matches:
+                    try:
+                        memory_id = match.id
+                        memory = ConversationMemory.objects.get(id=memory_id)
+                        
+                        # 유사도 점수 (Pinecone은 cosine similarity를 0-1로 반환)
+                        similarity = float(match.score) if match.score else 0.0
+                        
+                        results.append({
+                            'memory_id': str(memory.id),
+                            'conversation_id': match.metadata.get('conversation_id', '') if match.metadata else str(memory.conversation.id),
+                            'conversation_title': match.metadata.get('conversation_title', '') if match.metadata else memory.conversation.title,
+                            'content': match.metadata.get('content', '') if match.metadata else memory.content,
+                            'similarity': similarity,
+                            'created_at': match.metadata.get('created_at', '') if match.metadata else memory.created_at.isoformat(),
+                        })
+                    except ConversationMemory.DoesNotExist:
+                        logger.warning(f"메모리 {match.id}를 찾을 수 없습니다.")
+                        continue
+                    except Exception as e:
+                        logger.error(f"검색 결과 처리 실패: {e}")
+                        continue
             
             logger.info(f"유사 대화 검색: 쿼리='{query[:50]}...', 결과={len(results)}개")
             
@@ -345,42 +355,67 @@ class RAGManager:
     
     def rebuild_index_from_database(self):
         """
-        데이터베이스에서 인덱스 재구성
+        데이터베이스에서 Pinecone 인덱스 재구성
         
-        기존 ConversationMemory 레코드를 사용하여 FAISS 인덱스를 재생성
+        기존 ConversationMemory 레코드를 사용하여 Pinecone 인덱스를 재생성
         """
-        if not faiss or not self.user:
+        if not self.index or not self.user:
+            logger.error("Pinecone 인덱스 또는 사용자가 없습니다.")
             return
         
-        logger.info(f"사용자 {self.user.username}의 인덱스 재구성 시작...")
+        logger.info(f"사용자 {self.user.username}의 Pinecone 인덱스 재구성 시작...")
         
-        # 새 인덱스 생성
-        self._create_new_index()
+        namespace = self._get_namespace()
+        
+        # 네임스페이스 삭제 (선택적 - 주의 필요)
+        # self.index.delete(delete_all=True, namespace=namespace)
         
         # 모든 메모리 로드
         memories = ConversationMemory.objects.filter(user=self.user).order_by('created_at')
         
-        vectors = []
-        ids = []
+        vectors_to_upsert = []
+        batch_size = 100
         
         for memory in memories:
             try:
-                vector = np.frombuffer(memory.embedding_vector, dtype=np.float32)
-                vectors.append(vector)
-                ids.append(str(memory.id))
+                # 임베딩 벡터 재생성 또는 로드
+                embedding = self.create_embedding(memory.content)
+                if embedding is None:
+                    continue
+                
+                metadata = {
+                    'conversation_id': str(memory.conversation.id),
+                    'conversation_title': memory.conversation.title[:100] if memory.conversation.title else '',
+                    'content': memory.content[:500],
+                    'created_at': memory.created_at.isoformat(),
+                }
+                
+                if memory.message:
+                    metadata['message_id'] = str(memory.message.id)
+                
+                vectors_to_upsert.append((str(memory.id), embedding, metadata))
+                
+                # 배치 업로드
+                if len(vectors_to_upsert) >= batch_size:
+                    self.index.upsert(
+                        vectors=vectors_to_upsert,
+                        namespace=namespace
+                    )
+                    logger.info(f"배치 업로드: {len(vectors_to_upsert)}개 벡터")
+                    vectors_to_upsert = []
+                    
             except Exception as e:
-                logger.error(f"메모리 {memory.id} 로드 실패: {e}")
+                logger.error(f"메모리 {memory.id} 처리 실패: {e}")
         
-        if vectors:
-            # 인덱스에 추가
-            vectors_array = np.array(vectors, dtype=np.float32)
-            self.index.add(vectors_array)
-            self.index_to_memory_id = ids
-            self._save_index()
-            
-            logger.info(f"인덱스 재구성 완료: {len(vectors)}개 벡터")
-        else:
-            logger.warning("재구성할 메모리가 없습니다.")
+        # 남은 벡터 업로드
+        if vectors_to_upsert:
+            self.index.upsert(
+                vectors=vectors_to_upsert,
+                namespace=namespace
+            )
+            logger.info(f"최종 배치 업로드: {len(vectors_to_upsert)}개 벡터")
+        
+        logger.info(f"Pinecone 인덱스 재구성 완료: {memories.count()}개 메모리")
 
 
 # 전역 RAG Manager 인스턴스 생성 함수
@@ -395,4 +430,3 @@ def get_rag_manager(user: Optional[CustomUser] = None) -> RAGManager:
         RAGManager 인스턴스
     """
     return RAGManager(user=user)
-

@@ -15,14 +15,15 @@
 2. Railway가 자동으로 PostgreSQL 인스턴스를 생성하고 환경 변수를 설정합니다
 3. `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGHOST`, `PGPORT` 변수가 자동 생성됩니다
 
-## 3. 영구 볼륨 추가 (FAISS 인덱스 파일 저장용)
+## 3. Pinecone 계정 설정 (벡터 DB)
 
-**선택사항**: FAISS 인덱스 파일을 영구 저장하려면 볼륨을 추가할 수 있습니다.
+**필수**: RAG 기능을 사용하려면 Pinecone 계정이 필요합니다.
 
-1. Railway 프로젝트 대시보드에서 "New" → "Volume" 클릭
-2. Volume 이름: `data` (또는 원하는 이름)
-3. Mount Path: `/data` 설정
-4. 생성 완료 (FAISS 인덱스 저장용)
+1. [Pinecone](https://www.pinecone.io)에 가입 (무료 티어 제공)
+2. 대시보드에서 API 키 생성
+3. 환경 변수에 `PINECONE_API_KEY` 설정 (4번 섹션 참고)
+
+**참고**: Pinecone은 클라우드 기반 벡터 DB이므로 별도의 볼륨이나 파일 저장소가 필요 없습니다.
 
 ## 4. 환경 변수 설정
 
@@ -47,11 +48,6 @@ PGHOST=containers-us-west-xxx.railway.app  # Railway 자동 생성
 PGPORT=5432         # Railway 자동 생성
 ```
 
-### FAISS 인덱스 저장용 (선택사항)
-FAISS 인덱스 파일을 영구 볼륨에 저장하려면:
-```bash
-RAILWAY_VOLUME_MOUNT_PATH=/data  # 영구 볼륨 마운트 경로
-```
 
 ### LLM API Keys (최소 1개 필수)
 ```bash
@@ -76,6 +72,20 @@ CONTEXT_ELICITOR_MODEL=gpt-4o-mini
 ```bash
 CORS_EXTRA_ORIGINS=https://your-frontend-domain.com
 ```
+
+### Pinecone (벡터 DB) 설정 (RAG 기능용)
+Pinecone 무료 계정 생성: [https://www.pinecone.io](https://www.pinecone.io)
+
+1. Pinecone 대시보드에서 API 키 생성
+2. 인덱스 생성 (자동 생성되지만, 수동 생성도 가능)
+3. 환경 변수 설정:
+
+```bash
+PINECONE_API_KEY=your-pinecone-api-key
+PINECONE_INDEX_NAME=prompt-mate-memories  # 선택적, 기본값 사용 가능
+```
+
+**참고**: Pinecone은 무료 티어를 제공하며, 인덱스는 자동으로 생성됩니다.
 
 ## 5. SECRET_KEY 생성 방법
 
@@ -104,6 +114,15 @@ python manage.py shell -c "from django.core.management.utils import get_random_s
 
 ## 8. 트러블슈팅
 
+### Pinecone 연결 문제
+Pinecone 연결이 안 될 경우:
+1. `PINECONE_API_KEY` 환경 변수가 올바르게 설정되었는지 확인
+2. Pinecone 대시보드에서 API 키가 활성화되어 있는지 확인
+3. Pinecone 인덱스 이름이 올바른지 확인 (기본값: `prompt-mate-memories`)
+4. 로그에서 Pinecone 초기화 메시지 확인
+
+**참고**: Pinecone이 없어도 앱은 정상 작동하며 RAG 기능만 비활성화됩니다.
+
 ### 데이터베이스 마이그레이션 실패
 Railway 대시보드 → "Deployments" → 로그 확인
 수동으로 마이그레이션 실행:
@@ -122,9 +141,6 @@ railway run python manage.py create_subscription_plans
 - `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` 환경 변수 확인
 - Railway가 자동으로 설정한 환경 변수 사용 권장
 
-### FAISS 인덱스 저장 (선택사항)
-- 영구 볼륨을 추가한 경우 `RAILWAY_VOLUME_MOUNT_PATH` 환경 변수 확인
-- 볼륨이 제대로 마운트되었는지 확인
 
 ## 9. 모니터링
 
