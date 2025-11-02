@@ -13,7 +13,13 @@
 
 1. Railway 프로젝트 대시보드에서 "New" → "Database" → "Add PostgreSQL" 클릭
 2. Railway가 자동으로 PostgreSQL 인스턴스를 생성하고 환경 변수를 설정합니다
-3. `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGHOST`, `PGPORT` 변수가 자동 생성됩니다
+3. `DATABASE_URL` 환경 변수가 자동으로 생성됩니다 (이 변수를 사용하여 연결)
+4. PostgreSQL 서비스가 **같은 프로젝트**에 있어야 자동으로 환경 변수가 설정됩니다
+
+**확인 방법:**
+- Railway 대시보드 → 프로젝트 → "Variables" 탭
+- `DATABASE_URL` 변수가 있는지 확인
+- 형식: `postgresql://user:password@host:port/database`
 
 ## 3. Pinecone 계정 설정 (벡터 DB)
 
@@ -137,9 +143,21 @@ railway run python manage.py create_subscription_plans
 ```
 
 ### PostgreSQL 연결 오류
-- Railway 대시보드에서 PostgreSQL 서비스가 실행 중인지 확인
-- `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` 환경 변수 확인
-- Railway가 자동으로 설정한 환경 변수 사용 권장
+**증상**: `connection to server at "localhost" failed`
+
+**해결 방법:**
+1. Railway 대시보드에서 PostgreSQL 서비스가 **같은 프로젝트**에 있는지 확인
+2. PostgreSQL 서비스가 실행 중인지 확인 (일시 정지 상태일 수 있음)
+3. "Variables" 탭에서 `DATABASE_URL` 환경 변수가 있는지 확인
+4. PostgreSQL 서비스가 다른 프로젝트에 있다면:
+   - PostgreSQL 서비스의 "Variables" 탭에서 연결 정보 복사
+   - 앱 프로젝트의 "Variables" 탭에 `DATABASE_URL` 수동 설정
+   - 또는 PostgreSQL 서비스를 같은 프로젝트로 이동
+
+**DATABASE_URL 형식:**
+```
+postgresql://postgres:password@host:port/railway
+```
 
 
 ## 9. 모니터링

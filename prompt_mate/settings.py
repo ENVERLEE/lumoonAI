@@ -90,18 +90,41 @@ WSGI_APPLICATION = 'prompt_mate.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# Railway에서 PostgreSQL을 추가하면 환경 변수가 자동으로 설정됩니다
-# PG* 변수가 있으면 PostgreSQL 사용, 없으면 로컬 SQLite 사용
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('PGDATABASE', os.getenv('DB_NAME', 'prompt_mate')),
-        'USER': os.getenv('PGUSER', os.getenv('DB_USER', 'postgres')),
-        'PASSWORD': os.getenv('PGPASSWORD', os.getenv('DB_PASSWORD', '')),
-        'HOST': os.getenv('PGHOST', os.getenv('DB_HOST', 'localhost')),
-        'PORT': os.getenv('PGPORT', os.getenv('DB_PORT', '5432')),
+# Railway에서 PostgreSQL을 추가하면 DATABASE_URL 환경 변수가 자동으로 설정됩니다
+import dj_database_url
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL:
+    # Railway 환경: DATABASE_URL 사용
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
-}
+elif all([
+    os.getenv('PGDATABASE'),
+    os.getenv('PGUSER'),
+    os.getenv('PGPASSWORD'),
+    os.getenv('PGHOST'),
+]):
+    # 개별 PG* 환경 변수 사용
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('PGDATABASE'),
+            'USER': os.getenv('PGUSER'),
+            'PASSWORD': os.getenv('PGPASSWORD'),
+            'HOST': os.getenv('PGHOST'),
+            'PORT': os.getenv('PGPORT', '5432'),
+        }
+    }
+else:
+    # 로컬 개발 환경: SQLite 사용
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Railway 영구 볼륨 경로 (FAISS 인덱스 파일 저장용, PostgreSQL이 아닌 경우만 사용)
 RAILWAY_VOLUME_PATH = os.getenv('RAILWAY_VOLUME_MOUNT_PATH', '')
