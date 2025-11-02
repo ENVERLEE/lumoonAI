@@ -1,0 +1,21 @@
+# Railway에서 제외할 파일/디렉토리
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist/
+build/
+.env
+*.log
+db.sqlite3
+faiss_indexes/
+node_modules/
+.git/
+.cursor/
+*.zip
+
