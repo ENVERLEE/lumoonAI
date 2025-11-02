@@ -1,2157 +1,1021 @@
-/**
- * Loomon AI - Main Application Logic
- * Modern & Innovative UI Version
- */
+// 메인 애플리케이션 로직
 
-class LoomonAIApp {
-    constructor() {
-        this.sessionId = null;
-        this.currentQuestions = [];
-        this.answeredQuestions = new Map();
-        this.currentPromptHistoryId = null;
-        this.conversationHistory = [];
-        this.selectedGoal = null;
-        this.currentUser = null;
-        this.currentConversation = null;
-        this.conversations = [];
-        
-        // Icon helper function - Simple line icons
-        this.getIconSVG = (iconName, size = 20) => {
-            const strokeWidth = size <= 16 ? 1.5 : 2;
-            const icons = {
-                'brain': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-3 3"/><path d="M12 5a3 3 0 1 1 3 3"/><path d="M12 19a3 3 0 1 0-3-3"/><path d="M12 19a3 3 0 1 1 3-3"/><path d="M5 12a3 3 0 1 0 3 3"/><path d="M19 12a3 3 0 1 1-3 3"/></svg>`,
-                'lightning': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
-                'palette': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12c0 5 4 9 9 9 4.1 0 7.5-2.8 8.8-6.5"/><path d="M2 2h20v20"/></svg>`,
-                'book': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
-                'search': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`,
-                'chart': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
-                'lightbulb': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="21" x2="15" y2="21"/><path d="M12 3a6 6 0 0 0-3 11.2v3.8a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3.8A6 6 0 0 0 12 3z"/></svg>`,
-                'bug': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4"/><path d="M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><path d="M2 12h4M18 12h4"/><path d="M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg>`,
-                'settings': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M1 12h6m6 0h6"/></svg>`,
-                'wrench': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
-                'rocket': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>`,
-                'code': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
-                'file-text': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
-                'layers': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
-                'book-open': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
-                'edit': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
-                'target': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
-                'map': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>`,
-                'thinking': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
-                'message': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
-                'question': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
-                'star': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9 17 13.14 18.18 20.02 12 16.77 5.82 20.02 7 13.14 2 9 8.91 8.26 12 2"/></svg>`,
-                'skip': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>`,
-                'thumbs-up': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>`,
-                'thumbs-down': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/></svg>`,
-                'robot': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4H8"/><circle cx="12" cy="15" r="1"/><path d="M7 11h10"/></svg>`,
-                'link': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
-                'trash': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
-                'user': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-                'check': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
-            };
-            return icons[iconName] || '';
-        };
-        
-        // DOM Elements
-        this.elements = {
-            // Onboarding
-            onboardingScreen: document.getElementById('onboardingScreen'),
-            goalCards: document.querySelectorAll('.goal-card'),
-            skipOnboarding: document.getElementById('skipOnboarding'),
-            
-            // Main App
-            appContainer: document.getElementById('appContainer'),
-            chatArea: document.getElementById('chatArea'),
-            mainContainer: document.getElementById('mainContainer'),
-            
-            // Sidebar
-            sidebar: document.getElementById('sidebar'),
-            menuToggle: document.getElementById('menuToggle'),
-            sessionList: document.getElementById('sessionList'),
-            profileAvatar: document.getElementById('profileAvatar'),
-            profileName: document.getElementById('profileName'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            
-            // App Bar
-            subscriptionBtn: document.getElementById('subscriptionBtn'),
-            
-            // Chat
-            welcomeScreen: document.getElementById('welcomeScreen'),
-            messages: document.getElementById('messages'),
-            messageInput: document.getElementById('messageInput'),
-            sendBtn: document.getElementById('sendBtn'),
-            loadingIndicator: document.getElementById('loadingIndicator'),
-            
-            // UI Elements
-            newSessionBtn: document.getElementById('newSessionBtn'),
-            chatTitle: document.getElementById('chatTitle'),
-            toast: document.getElementById('toast'),
-            
-            // Goal UI
-            goalBadge: document.getElementById('goalBadge'),
-            goalIcon: document.getElementById('goalIcon'),
-            goalText: document.getElementById('goalText'),
-            quickActions: document.getElementById('quickActions'),
-            actionButtons: document.getElementById('actionButtons'),
-            suggestionChipsContainer: document.getElementById('suggestionChipsContainer'),
-            settingsBtn: document.getElementById('settingsBtn'),
-            
-            // Generation Controls
-            internetModeToggle: document.getElementById('internetModeToggle'),
-            modelSelect: document.getElementById('modelSelect'),
-            specificityLevel: document.getElementById('specificityLevel'),
-            
-            // Suggestion chips
-            suggestionChips: document.querySelectorAll('.suggestion-chip'),
-            
-            // Auth Modal
-            authModal: document.getElementById('authModal'),
-            authModalClose: document.getElementById('authModalClose'),
-            authModalTitle: document.getElementById('authModalTitle'),
-            loginForm: document.getElementById('loginForm'),
-            registerForm: document.getElementById('registerForm'),
-            showRegister: document.getElementById('showRegister'),
-            showLogin: document.getElementById('showLogin'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            
-            // Settings Modal
-            settingsModal: document.getElementById('settingsModal'),
-            settingsModalClose: document.getElementById('settingsModalClose'),
-            customInstructionsText: document.getElementById('customInstructionsText'),
-            customInstructionsActive: document.getElementById('customInstructionsActive'),
-            saveCustomInstructions: document.getElementById('saveCustomInstructions'),
-            profileUsername: document.getElementById('profileUsername'),
-            profileEmail: document.getElementById('profileEmail'),
-            profileBio: document.getElementById('profileBio'),
-            profileAvatar: document.getElementById('profileAvatar'),
-            saveProfile: document.getElementById('saveProfile'),
+// 전역 상태
+const AppState = {
+    currentUser: null,
+    currentConversation: null,
+    currentSessionId: null,
+    conversations: [],
+    messages: [],
+    pendingQuestions: [],
+    currentQuestionIndex: 0,
+    session: null,  // 세션 정보 (컨텍스트 추적용)
+    hasAnsweredQuestions: false,  // 질문에 답변했는지 여부
+};
 
-            // Subscription UI (in conversations modal)
-            subscriptionCard: document.getElementById('subscriptionCard'),
-            subscriptionPlan: document.getElementById('subscriptionPlan'),
-            subscriptionUsage: document.getElementById('subscriptionUsage'),
-            usageProgressFill: document.getElementById('usageProgressFill'),
-            subscriptionSettingsBtn: document.getElementById('subscriptionSettingsBtn'),
+// 초기화
+document.addEventListener('DOMContentLoaded', async () => {
+    await init();
+});
 
-            // Subscription Modal
-            subscriptionModal: document.getElementById('subscriptionModal'),
-            subscriptionModalClose: document.getElementById('subscriptionModalClose'),
-            plansGrid: document.getElementById('plansGrid'),
-            usageDetails: document.getElementById('usageDetails'),
-            inviteStats: document.getElementById('inviteStats'),
-            createInviteBtn: document.getElementById('createInviteBtn'),
-            inviteCodes: document.getElementById('inviteCodes'),
-            inviteCodeInput: document.getElementById('inviteCodeInput'),
-            useInviteBtn: document.getElementById('useInviteBtn'),
-            paymentSection: document.getElementById('paymentSection'),
-        };
-
-        this.init();
-    }
-
-    /**
-     * Initialize the application
-     */
-    async init() {
-        // Check for email verification token in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const verificationToken = urlParams.get('token');
-        if (verificationToken) {
-            try {
-                await AuthAPI.verifyEmail(verificationToken);
-                this.showToast('이메일 인증이 완료되었습니다!', 'success');
-                // Remove token from URL
-                window.history.replaceState({}, document.title, window.location.pathname);
-                // Refresh user data
-                await this.checkAuth();
-            } catch (error) {
-                this.showToast(error.message, 'error');
-            }
-        }
-        
-        // Check authentication status FIRST (login-first approach)
-        await this.checkAuth();
-        
-        // If not logged in, show login modal immediately
-        if (!this.currentUser) {
-            // Hide onboarding and app container
-            if (this.elements.onboardingScreen) {
-                this.elements.onboardingScreen.style.display = 'none';
-            }
-            if (this.elements.appContainer) {
-                this.elements.appContainer.classList.add('hidden');
-            }
-            
-            // Show login modal
-            this.showAuthModal('login');
-            
-            // Setup event listeners for auth
-            this.setupEventListeners();
-            return;
-        }
-        
-        // User is logged in - proceed with normal flow
-        // Check if user has completed onboarding
-        const hasCompletedOnboarding = localStorage.getItem('loomon_ai_onboarding_completed');
-        
-        if (hasCompletedOnboarding) {
-            this.skipOnboarding();
-        }
-
-        // Load session from localStorage
-        this.loadSession();
-
-        // Setup event listeners
-        this.setupEventListeners();
-
-        // Auto-resize textarea
-        this.setupTextareaAutoResize();
-        
-        // Load conversations
-        await this.loadConversations();
+async function init() {
+    // 현재 사용자 확인
+    const user = await getCurrentUser();
+    if (user) {
+        AppState.currentUser = user;
+        updateUIForUser(user);
     }
     
-    /**
-     * Check authentication status
-     */
-    async checkAuth() {
-        try {
-            const user = await AuthAPI.getCurrentUser();
-            if (user) {
-                this.currentUser = user;
-                this.updateUIForAuthenticatedUser();
-            } else {
-                this.updateUIForAnonymousUser();
-            }
-        } catch (error) {
-            console.error('Auth check error:', error);
-            this.updateUIForAnonymousUser();
-        }
+    // 대화 목록 로드
+    if (user) {
+        await loadConversations();
     }
     
-    /**
-     * Update UI for authenticated user
-     */
-    updateUIForAuthenticatedUser() {
-        // Update profile display in sidebar
-        if (this.elements.profileName) {
-            this.elements.profileName.textContent = this.currentUser.username;
-            this.elements.profileName.style.cursor = 'pointer';
-        }
-        
-        // Show logout button
-        if (this.elements.logoutBtn) {
-            this.elements.logoutBtn.classList.remove('hidden');
-        }
-        
-        // Show user avatar if available
-        if (this.elements.profileAvatar) {
-            if (this.currentUser.avatar) {
-                this.elements.profileAvatar.textContent = '';
-                this.elements.profileAvatar.style.backgroundImage = `url(${this.currentUser.avatar})`;
-                this.elements.profileAvatar.style.backgroundSize = 'cover';
-                this.elements.profileAvatar.style.backgroundPosition = 'center';
-            } else {
-                this.elements.profileAvatar.innerHTML = this.getIconSVG('user', 20);
-                this.elements.profileAvatar.style.backgroundImage = '';
-            }
-        }
+    // 이벤트 리스너 설정
+    setupEventListeners();
+}
 
-        // Update subscription UI
-        this.updateSubscriptionUI();
-    }
+function setupEventListeners() {
+    // 메시지 전송
+    const messageInput = document.getElementById('messageInput');
+    const btnSend = document.getElementById('btnSend');
     
-    /**
-     * Handle logout
-     */
-    async handleLogout() {
-        if (!confirm('로그아웃하시겠습니까?')) {
-            return;
-        }
-        
-        try {
-            await AuthAPI.logout();
-            this.currentUser = null;
-            this.currentConversation = null;
-            this.conversations = [];
-            
-            // Reset UI
-            this.updateUIForAnonymousUser();
-            await this.loadConversations();
-            
-            // Clear session
-            this.sessionId = null;
-            this.conversationHistory = [];
-            this.elements.messages.innerHTML = '';
-            this.elements.welcomeScreen.classList.remove('hidden');
-            this.elements.messages.classList.add('hidden');
-            
-            this.showToast('로그아웃되었습니다', 'success');
-        } catch (error) {
-            console.error('Logout error:', error);
-            this.showToast('로그아웃 실패: ' + error.message, 'error');
-        }
-    }
-    
-    /**
-     * Update UI for anonymous user
-     */
-    updateUIForAnonymousUser() {
-        // Update profile display in sidebar
-        if (this.elements.profileName) {
-            this.elements.profileName.textContent = '로그인';
-            this.elements.profileName.style.cursor = 'pointer';
-        }
-        
-        // Hide logout button
-        if (this.elements.logoutBtn) {
-            this.elements.logoutBtn.classList.add('hidden');
-        }
-        
-        // Reset avatar
-        if (this.elements.profileAvatar) {
-            this.elements.profileAvatar.innerHTML = this.getIconSVG('user', 20);
-            this.elements.profileAvatar.style.backgroundImage = '';
-        }
-        
-        // Anonymous users can still use the app, but show login option
-        // Don't auto-show modal, let them choose
-    }
-    
-    /**
-     * Show auth modal
-     */
-    showAuthModal(mode = 'login') {
-        console.log('showAuthModal called with mode:', mode);
-        
-        // Try to find modal if not in elements
-        let authModal = this.elements.authModal;
-        if (!authModal) {
-            authModal = document.getElementById('authModal');
-            console.log('Modal found via getElementById:', authModal);
-        }
-        
-        if (!authModal) {
-            console.error('Auth modal not found in DOM');
-            return;
-        }
-        
-        // Remove hidden class and force display
-        authModal.classList.remove('hidden');
-        authModal.style.display = 'flex';
-        authModal.style.visibility = 'visible';
-        authModal.style.opacity = '1';
-        authModal.style.zIndex = '10000';
-        authModal.style.position = 'fixed';
-        
-        console.log('Modal display set, checking forms...');
-        
-        const loginForm = this.elements.loginForm || document.getElementById('loginForm');
-        const registerForm = this.elements.registerForm || document.getElementById('registerForm');
-        const modalTitle = this.elements.authModalTitle || document.getElementById('authModalTitle');
-        
-        if (mode === 'login') {
-            if (loginForm) {
-                loginForm.classList.remove('hidden');
-                loginForm.style.display = 'block';
-                console.log('Login form shown');
-            }
-            if (registerForm) {
-                registerForm.classList.add('hidden');
-                registerForm.style.display = 'none';
-            }
-            if (modalTitle) {
-                modalTitle.textContent = '로그인';
-            }
-        } else {
-            if (loginForm) {
-                loginForm.classList.add('hidden');
-                loginForm.style.display = 'none';
-            }
-            if (registerForm) {
-                registerForm.classList.remove('hidden');
-                registerForm.style.display = 'block';
-                console.log('Register form shown');
-            }
-            if (modalTitle) {
-                modalTitle.textContent = '회원가입';
-            }
-        }
-        
-        console.log('Modal should be visible now');
-    }
-    
-    /**
-     * Hide auth modal
-     */
-    hideAuthModal() {
-        const authModal = this.elements.authModal || document.getElementById('authModal');
-        if (authModal) {
-            authModal.classList.add('hidden');
-            authModal.style.display = 'none';
-        }
-    }
-    
-    /**
-     * Show profile modal
-     */
-    async showProfileModal() {
-        if (!this.currentUser) {
-            this.showAuthModal('login');
-            return;
-        }
-        
-        this.elements.profileModal.classList.remove('hidden');
-        
-        // Load user data
-        const user = this.currentUser;
-        this.elements.profileModalName.textContent = user.username;
-        this.elements.profileModalUsername.value = user.username;
-        this.elements.profileModalEmail.value = user.email || '';
-        this.elements.profileModalBio.value = user.bio || '';
-        this.elements.profileModalAvatarUrl.value = user.avatar || '';
-        
-        // Update avatar
-        const avatarElement = this.elements.profileModalAvatar;
-        if (user.avatar) {
-            avatarElement.style.backgroundImage = `url(${user.avatar})`;
-            avatarElement.style.backgroundSize = 'cover';
-            avatarElement.style.backgroundPosition = 'center';
-            avatarElement.innerHTML = '';
-        } else {
-            avatarElement.style.backgroundImage = '';
-            avatarElement.innerHTML = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
-        }
-        
-        // Update email verification status
-        const emailVerified = user.email_verified || false;
-        if (emailVerified) {
-            this.elements.emailVerifiedBadge.style.display = 'inline-flex';
-            this.elements.emailUnverifiedBadge.style.display = 'none';
-            this.elements.resendVerificationSection.style.display = 'none';
-        } else {
-            this.elements.emailVerifiedBadge.style.display = 'none';
-            this.elements.emailUnverifiedBadge.style.display = 'inline-flex';
-            this.elements.resendVerificationSection.style.display = 'block';
-        }
-    }
-    
-    /**
-     * Hide profile modal
-     */
-    hideProfileModal() {
-        this.elements.profileModal.classList.add('hidden');
-    }
-    
-    /**
-     * Show settings modal
-     */
-    async showSettingsModal() {
-        this.elements.settingsModal.classList.remove('hidden');
-        
-        // Load custom instructions
-        if (this.currentUser) {
-            try {
-                const instructions = await CustomInstructionsAPI.getInstructions();
-                if (instructions) {
-                    this.elements.customInstructionsText.value = instructions.instructions;
-                    this.elements.customInstructionsActive.checked = instructions.is_active;
-                }
-            } catch (error) {
-                console.error('Load instructions error:', error);
-            }
-        }
-    }
-    
-    /**
-     * Hide settings modal
-     */
-    hideSettingsModal() {
-        this.elements.settingsModal.classList.add('hidden');
-    }
-    
-    /**
-     * Load conversations
-     */
-    async loadConversations() {
-        if (!this.currentUser) {
-            // 익명 사용자는 대화 목록 로드 안 함
-            if (this.elements.sessionList) {
-                this.elements.sessionList.innerHTML = '<div class="empty-conversations">로그인 후 대화 기록을 볼 수 있습니다</div>';
-            }
-            return;
-        }
-        
-        try {
-            const response = await ConversationAPI.getConversations();
-            this.conversations = response.results || [];
-            this.renderConversationList();
-        } catch (error) {
-            console.error('Load conversations error:', error);
-            if (this.elements.sessionList) {
-                this.elements.sessionList.innerHTML = '<div class="empty-conversations" style="color: #EF4444;">대화 목록을 불러올 수 없습니다</div>';
-            }
-        }
-    }
-    
-    /**
-     * Render conversation list
-     */
-    renderConversationList() {
-        if (!this.elements.sessionList) {
-            console.warn('sessionList element not found');
-            return;
-        }
-        
-        this.elements.sessionList.innerHTML = '';
-        
-        if (this.conversations.length === 0) {
-            const emptyMsg = document.createElement('div');
-            emptyMsg.className = 'empty-conversations';
-            emptyMsg.textContent = '대화 기록이 없습니다';
-            this.elements.sessionList.appendChild(emptyMsg);
-            return;
-        }
-        
-        this.conversations.forEach(conversation => {
-            const item = document.createElement('div');
-            item.className = 'session-item';
-            if (this.currentConversation === conversation.id) {
-                item.classList.add('active');
-            }
-            
-            const title = conversation.title || '제목 없음';
-            const date = new Date(conversation.last_message_at || conversation.created_at);
-            const dateStr = date.toLocaleDateString('ko-KR', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            
-            item.innerHTML = `
-                <div class="session-item-content">
-                    <div class="session-title">${title}</div>
-                    <div class="session-date">${dateStr}</div>
-                </div>
-                <button class="session-delete-btn" data-conversation-id="${conversation.id}" title="삭제">${this.getIconSVG('trash', 14)}</button>
-            `;
-            
-            // 클릭 시 대화 로드
-            item.querySelector('.session-item-content').addEventListener('click', () => {
-                this.loadConversation(conversation.id);
-                // Mobile에서 사이드바 닫기
-                if (window.innerWidth <= 768) {
-                    this.elements.sidebar.classList.remove('open');
-                }
-            });
-            
-            // 삭제 버튼
-            const deleteBtn = item.querySelector('.session-delete-btn');
-            deleteBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (confirm('이 대화를 삭제하시겠습니까?')) {
-                    await this.deleteConversation(conversation.id);
-                }
-            });
-            
-            this.elements.sessionList.appendChild(item);
-        });
-    }
-    
-    /**
-     * Delete a conversation
-     */
-    async deleteConversation(conversationId) {
-        try {
-            await ConversationAPI.deleteConversation(conversationId);
-            
-            // 현재 대화이면 초기화
-            if (this.currentConversation === conversationId) {
-                this.currentConversation = null;
-                this.startNewSession();
-            }
-            
-            // 목록 새로고침
-            await this.loadConversations();
-            this.showToast('대화가 삭제되었습니다', 'success');
-        } catch (error) {
-            console.error('Delete conversation error:', error);
-            this.showToast('대화 삭제 실패: ' + error.message, 'error');
-        }
-    }
-    
-    /**
-     * Load a conversation
-     */
-    async loadConversation(conversationId) {
-        try {
-            const conversation = await ConversationAPI.getConversation(conversationId);
-            const messages = await ConversationAPI.getMessages(conversationId);
-            
-            this.currentConversation = conversationId;
-            this.conversationHistory = [];
-            
-            // Clear current messages
-            this.elements.messages.innerHTML = '';
-            this.elements.messages.classList.remove('hidden');
-            this.elements.welcomeScreen.classList.add('hidden');
-            
-            // Update title
-            this.elements.chatTitle.textContent = conversation.title || '대화';
-            
-            // Render messages
-            messages.forEach(message => {
-                this.addMessage(message.content, message.role);
-                // Conversation history에도 추가
-                this.conversationHistory.push({
-                    role: message.role,
-                    content: message.content
-                });
-            });
-            
-            // 대화 목록 새로고침 (active 상태 업데이트)
-            await this.loadConversations();
-            
-            this.scrollToBottom();
-            this.showToast('대화가 로드되었습니다', 'success');
-        } catch (error) {
-            console.error('Load conversation error:', error);
-            this.showToast('대화를 불러올 수 없습니다: ' + error.message, 'error');
-        }
-    }
-
-    /**
-     * Setup event listeners
-     */
-    setupEventListeners() {
-        // Onboarding - Goal cards
-        this.elements.goalCards.forEach(card => {
-            card.addEventListener('click', () => this.selectGoal(card));
-        });
-
-        // Skip onboarding
-        this.elements.skipOnboarding?.addEventListener('click', () => {
-            this.skipOnboarding();
-        });
-
-        // Sidebar toggle (mobile)
-        this.elements.menuToggle?.addEventListener('click', () => {
-            this.elements.sidebar.classList.toggle('open');
-        });
-
-        // Close sidebar when clicking outside (mobile)
-        document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768) {
-                if (this.elements.sidebar && this.elements.sidebar.classList.contains('open')) {
-                    if (!this.elements.sidebar.contains(e.target) && 
-                        !this.elements.menuToggle.contains(e.target)) {
-                        this.elements.sidebar.classList.remove('open');
-                    }
-                }
-            }
-        });
-
-        // Send button
-        this.elements.sendBtn.addEventListener('click', () => this.handleSendMessage());
-
-        // Enter key to send (Shift+Enter for new line)
-        this.elements.messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.handleSendMessage();
-            }
-        });
-
-        // Enable/disable send button based on input
-        this.elements.messageInput.addEventListener('input', () => {
-            const hasText = this.elements.messageInput.value.trim().length > 0;
-            this.elements.sendBtn.disabled = !hasText;
-        });
-
-        // New session button
-        this.elements.newSessionBtn?.addEventListener('click', () => this.startNewSession());
-
-        // Suggestion chips
-        this.elements.suggestionChips.forEach(chip => {
-            chip.addEventListener('click', () => {
-                this.elements.messageInput.value = chip.textContent;
-                this.elements.sendBtn.disabled = false;
-                this.handleSendMessage();
-            });
-        });
-
-        
-        // Auth Modal - setup after DOM is ready
-        setTimeout(() => {
-            const authModalClose = document.getElementById('authModalClose');
-            const showRegister = document.getElementById('showRegister');
-            const showLogin = document.getElementById('showLogin');
-            
-            authModalClose?.addEventListener('click', () => this.hideAuthModal());
-            
-            showRegister?.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.showAuthModal('register');
-            });
-            
-            showLogin?.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.showAuthModal('login');
-            });
-            
-            // Click outside modal to close
-            const authModal = document.getElementById('authModal');
-            authModal?.addEventListener('click', (e) => {
-                if (e.target === authModal) {
-                    this.hideAuthModal();
-                }
-            });
-            
-            // Profile name click to show login or profile modal
-            if (this.elements.profileName) {
-                this.elements.profileName.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!this.currentUser) {
-                        this.showAuthModal('login');
-                    } else {
-                        this.showProfileModal();
-                    }
-                });
-            }
-
-            // User profile clickable
-            const userProfile = document.getElementById('userProfile');
-            if (userProfile) {
-                userProfile.style.cursor = 'pointer';
-                userProfile.addEventListener('click', (e) => {
-                    if (e.target.closest('.logout-btn')) {
-                        return;
-                    }
-                    if (e.target === userProfile || e.target.closest('.profile-info')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!this.currentUser) {
-                            this.showAuthModal('login');
-                        } else {
-                            this.showProfileModal();
-                        }
-                    }
-                });
-            }
-
-            // Logout button
-            if (this.elements.logoutBtn) {
-                this.elements.logoutBtn.addEventListener('click', () => this.handleLogout());
-            }
-        }, 100);
-        
-        this.elements.loginForm?.addEventListener('submit', (e) => {
+    btnSend.addEventListener('click', handleSendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            this.handleLogin();
-        });
-        
-        this.elements.registerForm?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleRegister();
-        });
-        
-        // Profile Modal
-        this.elements.profileModalClose?.addEventListener('click', () => this.hideProfileModal());
-        this.elements.resendVerificationBtn?.addEventListener('click', () => this.handleResendVerification());
-        this.elements.saveProfileModal?.addEventListener('click', () => this.saveProfileFromModal());
-        
-        // Click outside modal to close
-        this.elements.profileModal?.addEventListener('click', (e) => {
-            if (e.target === this.elements.profileModal) {
-                this.hideProfileModal();
-            }
-        });
-        
-        // Settings Modal
-        this.elements.settingsBtn?.addEventListener('click', () => this.showSettingsModal());
-        this.elements.settingsModalClose?.addEventListener('click', () => this.hideSettingsModal());
-        
-        this.elements.saveCustomInstructions?.addEventListener('click', () => this.saveCustomInstructions());
-
-        // Subscription UI
-        this.elements.subscriptionBtn?.addEventListener('click', () => this.showSubscriptionModal());
-        this.elements.subscriptionSettingsBtn?.addEventListener('click', () => this.showSubscriptionModal());
-        this.elements.subscriptionModalClose?.addEventListener('click', () => this.hideSubscriptionModal());
-
-        // Subscription Modal Tabs
-        document.querySelectorAll('#subscriptionModal .tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetTab = btn.dataset.tab;
-
-                // Update active button
-                document.querySelectorAll('#subscriptionModal .tab-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-
-                // Update active tab
-                document.querySelectorAll('#subscriptionModal .tab-content').forEach(t => t.classList.remove('active'));
-                document.getElementById(`${targetTab}-tab`)?.classList.add('active');
-
-                // Load tab content
-                this.loadSubscriptionTabContent(targetTab);
-            });
-        });
-
-        // Subscription Modal Actions
-        this.elements.createInviteBtn?.addEventListener('click', () => this.handleCreateInviteCode());
-        this.elements.useInviteBtn?.addEventListener('click', () => this.handleUseInviteBtn());
-        
-        // Settings Tabs
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetTab = btn.dataset.tab;
-                
-                // Update active button
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                // Update active tab
-                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-                document.getElementById(`${targetTab}-tab`)?.classList.add('active');
-            });
-        });
-    }
+            handleSendMessage();
+        }
+    });
     
-    /**
-     * Handle login
-     */
-    async handleLogin() {
+    // 입력창 자동 높이 조정
+    messageInput.addEventListener('input', () => {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = messageInput.scrollHeight + 'px';
+    });
+    
+    // 새 대화 버튼
+    document.getElementById('btnNewChat').addEventListener('click', handleNewConversation);
+    
+    // 인증 모달
+    const authModal = document.getElementById('authModal');
+    document.getElementById('authModalClose').addEventListener('click', () => hideModal('authModal'));
+    
+    // 인증 탭 전환
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.tab;
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+            
+            tab.classList.add('active');
+            document.getElementById(`${tabName}Form`).classList.add('active');
+        });
+    });
+    
+    // 로그인 폼
+    document.getElementById('loginFormElement').addEventListener('submit', async (e) => {
+        e.preventDefault();
         const username = document.getElementById('loginUsername').value;
         const password = document.getElementById('loginPassword').value;
-        
-        try {
-            const user = await AuthAPI.login(username, password);
-            this.currentUser = user;
-            this.hideAuthModal();
-            this.updateUIForAuthenticatedUser();
-            
-            // Show app container after login
-            if (this.elements.appContainer) {
-                this.elements.appContainer.classList.remove('hidden');
-            }
-            if (this.elements.onboardingScreen) {
-                this.elements.onboardingScreen.style.display = 'none';
-            }
-            
-            // Check if user has completed onboarding
-            const hasCompletedOnboarding = localStorage.getItem('loomon_ai_onboarding_completed');
-            if (hasCompletedOnboarding) {
-                this.skipOnboarding();
-            }
-            // If not completed, onboarding screen will show
-            
-            // Load session and conversations
-            this.loadSession();
-            await this.loadConversations();
-            
-            this.showToast('로그인 성공!', 'success');
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        }
-    }
+        await handleLogin(username, password);
+    });
     
-    /**
-     * Handle register
-     */
-    async handleRegister() {
+    // 회원가입 폼
+    document.getElementById('registerFormElement').addEventListener('submit', async (e) => {
+        e.preventDefault();
         const username = document.getElementById('registerUsername').value;
         const email = document.getElementById('registerEmail').value;
         const password = document.getElementById('registerPassword').value;
         const bio = document.getElementById('registerBio').value;
-        
-        try {
-            const user = await AuthAPI.register(username, email, password, bio);
-            this.currentUser = user;
-            this.hideAuthModal();
-            this.updateUIForAuthenticatedUser();
-            
-            // Show app container after registration
-            if (this.elements.appContainer) {
-                this.elements.appContainer.classList.remove('hidden');
-            }
-            if (this.elements.onboardingScreen) {
-                this.elements.onboardingScreen.style.display = 'none';
-            }
-            
-            // Check if user has completed onboarding
-            const hasCompletedOnboarding = localStorage.getItem('loomon_ai_onboarding_completed');
-            if (hasCompletedOnboarding) {
-                this.skipOnboarding();
-            }
-            // If not completed, onboarding screen will show
-            
-            // Load session and conversations
-            this.loadSession();
-            await this.loadConversations();
-            
-            // TODO: Show email verification prompt after registration
-            // For now, just show success message
-            this.showToast('회원가입 성공! 이메일 인증을 완료해주세요.', 'success');
-        } catch (error) {
-            this.showToast(error.message, 'error');
+        await handleRegister(username, email, password, bio);
+    });
+    
+    // 프로필 버튼
+    document.getElementById('btnProfile').addEventListener('click', () => {
+        if (AppState.currentUser) {
+            showProfileModal();
+        } else {
+            showModal('authModal');
         }
+    });
+    
+    // 설정 버튼
+    document.getElementById('btnSettings').addEventListener('click', () => {
+        if (AppState.currentUser) {
+            showSettingsModal();
+        } else {
+            showModal('authModal');
+        }
+    });
+    
+    // 구독 버튼
+    document.getElementById('btnSubscription').addEventListener('click', () => {
+        if (AppState.currentUser) {
+            showSubscriptionModal();
+        } else {
+            showModal('authModal');
+        }
+    });
+    
+    document.getElementById('btnSubscriptionHeader').addEventListener('click', () => {
+        if (AppState.currentUser) {
+            showSubscriptionModal();
+        } else {
+            showModal('authModal');
+        }
+    });
+    
+    // 예시 질문 클릭
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('suggestion-chip')) {
+            const suggestion = e.target.dataset.suggestion;
+            messageInput.value = suggestion;
+            messageInput.focus();
+            setTimeout(() => handleSendMessage(), 100);
+        }
+        
+        // 피드백 버튼
+        if (e.target.classList.contains('btn-feedback')) {
+            const sentiment = e.target.dataset.sentiment;
+            const historyId = e.target.dataset.historyId;
+            handleFeedback(sentiment, historyId);
+        }
+    });
+    
+    // 모달 닫기 (외부 클릭)
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                hideModal(modal.id);
+            }
+        });
+    });
+}
+
+// 메시지 전송 처리
+async function handleSendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const input = messageInput.value.trim();
+    
+    if (!input) return;
+    
+    // 사용자 인증 확인
+    if (!AppState.currentUser) {
+        showModal('authModal');
+        return;
     }
     
-    /**
-     * Save custom instructions
-     */
-    async saveCustomInstructions() {
-        const instructions = this.elements.customInstructionsText.value;
-        const isActive = this.elements.customInstructionsActive.checked;
-        
-        try {
-            await CustomInstructionsAPI.saveInstructions(instructions, isActive);
-            this.showToast('커스텀 지침이 저장되었습니다', 'success');
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        }
+    // 대화가 없으면 생성
+    if (!AppState.currentConversation) {
+        const conv = await createConversation();
+        AppState.currentConversation = conv.id;
+        await loadConversations();
     }
     
-    /**
-     * Save profile from profile modal
-     */
-    async saveProfileFromModal() {
-        const bio = this.elements.profileModalBio.value;
-        const avatar = this.elements.profileModalAvatarUrl.value;
-        
-        try {
-            const user = await AuthAPI.updateUser({ bio, avatar });
-            this.currentUser = user;
-            this.updateUIForAuthenticatedUser();
-            // Reload profile modal to update verification status
-            await this.showProfileModal();
-            this.showToast('프로필이 업데이트되었습니다', 'success');
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        }
+    // 사용자 메시지 표시
+    const userMessage = {
+        role: 'user',
+        content: input,
+    };
+    renderMessage(userMessage, document.getElementById('messagesContainer'));
+    await createMessage(AppState.currentConversation, 'user', input);
+    
+    // 입력 필드 초기화
+    messageInput.value = '';
+    messageInput.style.height = 'auto';
+    
+    // 환영 화면 숨김
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    if (welcomeScreen) {
+        welcomeScreen.remove();
     }
     
-    /**
-     * Handle resend verification email
-     */
-    async handleResendVerification() {
-        try {
-            await AuthAPI.resendVerification();
-            this.showToast('인증 이메일이 재발송되었습니다. 이메일을 확인해주세요.', 'success');
-            // Refresh user data to get updated status
-            const user = await AuthAPI.getCurrentUser();
-            if (user) {
-                this.currentUser = user;
-                // Update profile modal to reflect changes
-                await this.showProfileModal();
-            }
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        }
-    }
+    // 채팅 플로우 시작
+    await processChatFlow(input);
+}
 
-    /**
-     * Setup textarea auto-resize
-     */
-    setupTextareaAutoResize() {
-        this.elements.messageInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+// 채팅 플로우 처리
+async function processChatFlow(userInput) {
+    try {
+        showLoading('AI가 분석 중입니다...');
+        
+        // 1. Intent 파싱
+        const intentResult = await parseIntent(userInput, AppState.currentSessionId);
+        AppState.currentSessionId = intentResult.session_id;
+        
+        // session_id 유효성 확인
+        if (!intentResult.session_id) {
+            throw new Error('세션 ID를 받지 못했습니다.');
+        }
+        
+        console.log('Intent 파싱 결과:', { 
+            session_id: intentResult.session_id, 
+            needs_clarification: intentResult.needs_clarification,
+            confidence: intentResult.intent?.confidence,
+            completeness: intentResult.intent?.completeness,
+            specificity: intentResult.intent?.specificity
         });
-    }
-
-    /**
-     * Select a goal from onboarding
-     */
-    async selectGoal(card) {
-        const goal = card.getAttribute('data-goal');
-        this.selectedGoal = goal;
         
-        // Visual feedback
-        card.style.transform = 'scale(1.1)';
-        card.style.opacity = '0.7';
+        // 2. 질문 생성 및 답변 수집
+        // 핵심 기능: 대부분의 경우 질문을 생성하여 더 나은 답변을 위한 정보 수집
+        // 첫 대화이거나 세션이 새로 생성된 경우 항상 질문 생성
+        const completeness = intentResult.intent?.completeness;
+        const specificity = intentResult.intent?.specificity;
+        const confidence = intentResult.intent?.confidence || 0;
         
-        try {
-            // Create a new session if needed
-            if (!this.sessionId) {
-                // Parse a dummy intent to create session
-                const result = await LoomonAIAPI.parseIntent(`목표: ${goal}`, null, []);
-                this.sessionId = result.session_id;
-                this.saveSession();
-            }
-            
-            // Set the goal for this session
-            await LoomonAIAPI.setGoal(this.sessionId, goal);
-            
-            setTimeout(() => {
-                this.completeOnboarding(goal);
-            }, 300);
-            
-        } catch (error) {
-            console.error('Error setting goal:', error);
-            // Still complete onboarding even if goal setting fails
-            setTimeout(() => {
-                this.completeOnboarding(goal);
-            }, 300);
-        }
-    }
-
-    /**
-     * Complete onboarding and transition to main app
-     */
-    completeOnboarding(goal) {
-        localStorage.setItem('loomon_ai_onboarding_completed', 'true');
-        if (goal) {
-            localStorage.setItem('loomon_ai_user_goal', goal);
-        }
+        // 질문 생성 조건 개선:
+        // 1. 이전에 질문에 답변하지 않은 경우 (첫 메시지)
+        // 2. needs_clarification이 true인 경우
+        // 3. completeness가 COMPLETE가 아닌 경우
+        // 4. specificity가 HIGH가 아닌 경우 (더 구체적인 정보 필요)
+        // 5. confidence가 낮은 경우 (< 0.85)
+        // 핵심: 첫 메시지이거나 정보가 불완전한 경우 질문 생성
+        const isFirstMessage = !AppState.hasAnsweredQuestions;
         
-        // Fade out onboarding
-        this.elements.onboardingScreen.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-        this.elements.onboardingScreen.style.opacity = '0';
-        this.elements.onboardingScreen.style.transform = 'scale(0.95)';
+        const shouldAskQuestions = isFirstMessage || 
+                                   intentResult.needs_clarification || 
+                                   completeness !== 'COMPLETE' ||
+                                   specificity !== 'HIGH' ||
+                                   confidence < 0.85;
         
-        setTimeout(() => {
-            this.elements.onboardingScreen.style.display = 'none';
-            this.elements.appContainer.classList.remove('hidden');
-            
-            // Setup goal-based UI
-            if (goal) {
-                this.setupGoalBasedUI(goal);
-            }
-            
-            this.showToast(`환영합니다! 무엇이든 물어보세요.`, 'success');
-        }, 500);
-    }
-
-    /**
-     * Setup goal-based UI customization
-     */
-    setupGoalBasedUI(goal) {
-        const goalConfig = {
-            '알기': {
-                icon: 'brain',
-                subtitle: '정보를 찾고 이해하는 것을 도와드릴게요',
-                actions: [
-                    { icon: 'search', text: '검색', prompt: '에 대해 알려줘' },
-                    { icon: 'chart', text: '비교', prompt: '와/과 의 차이점을 설명해줘' },
-                    { icon: 'lightbulb', text: '설명', prompt: '는/은 무엇인가요?' },
-                    { icon: 'book', text: '요약', prompt: '를/을 간단히 요약해줘' },
-                ],
-                suggestions: [
-                    'Python과 JavaScript의 차이점',
-                    'REST API란 무엇인가요?',
-                    '딥러닝의 기본 개념 설명',
-                    'Docker와 Kubernetes 비교',
-                ]
-            },
-            '하기': {
-                icon: 'lightning',
-                subtitle: '문제를 해결하고 실행하는 것을 도와드릴게요',
-                actions: [
-                    { icon: 'bug', text: '디버깅', prompt: ' 에러를 해결해줘' },
-                    { icon: 'settings', text: '최적화', prompt: '를/을 최적화해줘' },
-                    { icon: 'wrench', text: '수정', prompt: '를/을 고쳐줘' },
-                    { icon: 'rocket', text: '배포', prompt: '배포 방법 알려줘' },
-                ],
-                suggestions: [
-                    'React 렌더링 최적화 방법',
-                    'Django ORM N+1 문제 해결',
-                    'Git merge conflict 해결',
-                    'API 응답 속도 개선',
-                ]
-            },
-            '만들기': {
-                icon: 'palette',
-                subtitle: '새로운 것을 만드는 것을 도와드릴게요',
-                actions: [
-                    { icon: 'code', text: '코드', prompt: '코드를 작성해줘' },
-                    { icon: 'palette', text: '디자인', prompt: 'UI를 디자인해줘' },
-                    { icon: 'file-text', text: '문서', prompt: '문서를 작성해줘' },
-                    { icon: 'layers', text: '구조', prompt: '아키텍처를 설계해줘' },
-                ],
-                suggestions: [
-                    'React 로그인 컴포넌트 만들기',
-                    'REST API CRUD 구현',
-                    'PostgreSQL 데이터베이스 스키마 설계',
-                    '반응형 네비게이션 바 만들기',
-                ]
-            },
-            '배우기': {
-                icon: 'book',
-                subtitle: '새로운 것을 배우는 것을 도와드릴게요',
-                actions: [
-                    { icon: 'book-open', text: '튜토리얼', prompt: ' 튜토리얼을 알려줘' },
-                    { icon: 'edit', text: '연습', prompt: ' 연습 문제를 내줘' },
-                    { icon: 'target', text: '예제', prompt: ' 예제를 보여줘' },
-                    { icon: 'map', text: '로드맵', prompt: ' 학습 로드맵을 알려줘' },
-                ],
-                suggestions: [
-                    'TypeScript 기초 배우기',
-                    'Django 시작하기 튜토리얼',
-                    'GraphQL 개념과 실습',
-                    '알고리즘 학습 로드맵',
-                ]
-            }
-        };
-
-        const config = goalConfig[goal];
-        if (!config) return;
-
-        // Update goal badge
-        this.elements.goalBadge.classList.remove('hidden');
-        this.elements.goalIcon.innerHTML = this.getIconSVG(config.icon, 16);
-        this.elements.goalText.textContent = goal;
-
-        // Update subtitle
-        this.elements.chatSubtitle.textContent = config.subtitle;
-
-        // Setup quick actions
-        this.elements.quickActions.classList.remove('hidden');
-        this.elements.actionButtons.innerHTML = '';
-        config.actions.forEach(action => {
-            const btn = document.createElement('button');
-            btn.className = 'action-btn';
-            btn.innerHTML = `
-                <span class="action-btn-icon">${this.getIconSVG(action.icon, 24)}</span>
-                <span class="action-btn-text">${action.text}</span>
-            `;
-            btn.addEventListener('click', () => {
-                this.elements.messageInput.value = action.prompt;
-                this.elements.messageInput.focus();
-                this.elements.sendBtn.disabled = false;
-            });
-            this.elements.actionButtons.appendChild(btn);
-        });
-
-        // Update suggestion chips
-        this.elements.suggestionChipsContainer.innerHTML = '';
-        config.suggestions.forEach(suggestion => {
-            const chip = document.createElement('button');
-            chip.className = 'suggestion-chip';
-            chip.textContent = suggestion;
-            chip.addEventListener('click', () => {
-                this.elements.messageInput.value = suggestion;
-                this.elements.sendBtn.disabled = false;
-                this.handleSendMessage();
-            });
-            this.elements.suggestionChipsContainer.appendChild(chip);
-        });
-    }
-
-    /**
-     * Skip onboarding
-     */
-    skipOnboarding() {
-        localStorage.setItem('loomon_ai_onboarding_completed', 'true');
-        this.elements.onboardingScreen.style.display = 'none';
-        this.elements.appContainer.classList.remove('hidden');
-        
-        // Check if user has a saved goal
-        const savedGoal = localStorage.getItem('loomon_ai_user_goal');
-        if (savedGoal) {
-            this.setupGoalBasedUI(savedGoal);
-        }
-    }
-
-    /**
-     * Load session from localStorage
-     */
-    loadSession() {
-        const savedSessionId = localStorage.getItem('loomon_ai_session_id');
-        if (savedSessionId) {
-            this.sessionId = savedSessionId;
-            this.updateSessionInfo();
-        }
-    }
-
-    /**
-     * Save session to localStorage
-     */
-    saveSession() {
-        if (this.sessionId) {
-            localStorage.setItem('loomon_ai_session_id', this.sessionId);
-            this.updateSessionInfo();
-        }
-    }
-
-    /**
-     * Update session info display (removed - no longer needed)
-     */
-    updateSessionInfo() {
-        // Session info no longer displayed in new layout
-    }
-
-    /**
-     * Start a new session
-     */
-    startNewSession() {
-        this.sessionId = null;
-        this.currentQuestions = [];
-        this.answeredQuestions.clear();
-        this.currentPromptHistoryId = null;
-        this.conversationHistory = [];
-        
-        localStorage.removeItem('loomon_ai_session_id');
-        
-        // Clear messages
-        this.elements.messages.innerHTML = '';
-        this.elements.messages.classList.add('hidden');
-        this.elements.welcomeScreen.classList.remove('hidden');
-        
-        // Reset chat title
-        this.elements.chatTitle.textContent = '새로운 대화';
-        
-        this.updateSessionInfo();
-        this.showToast('새 세션이 시작되었습니다', 'success');
-    }
-
-    /**
-     * Handle sending a message
-     */
-    async handleSendMessage() {
-        const message = this.elements.messageInput.value.trim();
-        if (!message) return;
-
-        // Clear input
-        this.elements.messageInput.value = '';
-        this.elements.messageInput.style.height = 'auto';
-        this.elements.sendBtn.disabled = true;
-
-        // Hide welcome screen, show messages
-        this.elements.welcomeScreen.classList.add('hidden');
-        this.elements.messages.classList.remove('hidden');
-
-        // Add user message to UI
-        this.addMessage(message, 'user');
-
-        // Update chat title with first message
-        if (this.conversationHistory.length === 0) {
-            const title = message.substring(0, 50) + (message.length > 50 ? '...' : '');
-            this.elements.chatTitle.textContent = title;
-            
-            // 로그인한 사용자는 대화 생성
-            if (this.currentUser && !this.currentConversation) {
-                try {
-                    const conversation = await ConversationAPI.createConversation(title);
-                    this.currentConversation = conversation.id;
-                } catch (error) {
-                    console.error('Failed to create conversation:', error);
-                }
-            }
-        }
-
-        // Scroll to bottom
-        this.scrollToBottom();
-
-        try {
-            // Show loading
-            this.showLoading();
-
-            // Step 1: Parse Intent
-            const intentResult = await LoomonAIAPI.parseIntent(
-                message,
-                this.sessionId,
-                this.conversationHistory
-            );
-
-            // Save session ID
-            if (!this.sessionId) {
-                this.sessionId = intentResult.session_id;
-                this.saveSession();
-            }
-
-            // Add to conversation history
-            this.conversationHistory.push({
-                role: 'user',
-                content: message,
-            });
-
-            // Step 2: Get questions if needed
-            if (intentResult.needs_clarification || !this.currentQuestions.length) {
-                // Show AI is analyzing
-                this.addSystemMessage('AI가 추가 정보가 필요한지 확인하고 있습니다...', 'thinking');
-                
-                const questionsResult = await LoomonAIAPI.getQuestions(this.sessionId);
-                
-                if (questionsResult.questions && questionsResult.questions.length > 0) {
-                    this.currentQuestions = questionsResult.questions;
-                    this.hideLoading();
-                    
-                    // Add explanation message
-                    this.addSystemMessage(
-                        `더 정확한 답변을 위해 ${questionsResult.questions.length}가지 질문을 드릴게요!`,
-                        'message'
-                    );
-                    
-                    // Display questions one by one
-                    await this.displayQuestions();
-                    return;
-                }
-            }
-
-            // Step 3: Generate LLM response directly if no questions
-            await this.generateResponse();
-            
-            // 대화 목록 새로고침 (로그인한 사용자)
-            if (this.currentUser) {
-                await this.loadConversations();
-            }
-
-        } catch (error) {
-            console.error('Error handling message:', error);
-            this.hideLoading();
-            this.showToast(`오류: ${error.message}`, 'error');
-            this.addMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'system');
-        }
-    }
-
-    /**
-     * Display context questions
-     */
-    async displayQuestions() {
-        for (const question of this.currentQuestions) {
-            await this.displaySingleQuestion(question);
-        }
-
-        // After all questions answered, generate response
-        await this.generateResponse();
-        
-        // 대화 목록 새로고침 (로그인한 사용자)
-        if (this.currentUser) {
-            await this.loadConversations();
-        }
-    }
-
-    /**
-     * Display a single question with options
-     */
-    displaySingleQuestion(question) {
-        return new Promise((resolve) => {
-            const questionDiv = document.createElement('div');
-            questionDiv.className = 'question-message';
-            
-            // Priority indicator
-            const priorityBadge = document.createElement('div');
-            priorityBadge.className = 'question-priority';
-            const priorityCount = Math.min(question.priority || 3, 5);
-            const priorityStars = this.getIconSVG('star', 14).repeat(priorityCount);
-            priorityBadge.innerHTML = `<span class="priority-label">중요도</span> ${priorityStars}`;
-            questionDiv.appendChild(priorityBadge);
-
-            // Question text with icon
-            const questionHeader = document.createElement('div');
-            questionHeader.className = 'question-header';
-            questionHeader.innerHTML = `
-                <span class="question-icon">${this.getIconSVG('question', 24)}</span>
-                <span class="question-text">${question.text}</span>
-            `;
-            questionDiv.appendChild(questionHeader);
-
-            // Rationale (if exists)
-            if (question.rationale) {
-                const rationale = document.createElement('div');
-                rationale.className = 'question-rationale';
-                rationale.innerHTML = `
-                    <span class="rationale-icon">${this.getIconSVG('lightbulb', 20)}</span>
-                    <span class="rationale-text">${question.rationale}</span>
-                `;
-                questionDiv.appendChild(rationale);
-            }
-
-            // Options
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'question-options';
-
-            const options = question.options || ['예', '아니오', '잘 모르겠어요'];
-            
-            options.forEach((option, index) => {
-                const button = document.createElement('button');
-                button.className = 'option-btn';
-                button.innerHTML = `
-                    <span class="option-number">${index + 1}</span>
-                    <span class="option-text">${option}</span>
-                `;
-                
-                button.addEventListener('click', async () => {
-                    // Mark as selected
-                    optionsDiv.querySelectorAll('.option-btn').forEach(btn => {
-                        btn.classList.remove('selected');
-                        btn.disabled = true;
-                    });
-                    button.classList.add('selected');
-
-                    // Save answer
-                    this.answeredQuestions.set(question.text, option);
-
-                    try {
-                        // Send answer to backend
-                        await LoomonAIAPI.answerQuestion(
-                            this.sessionId,
-                            question.text,
-                            option
-                        );
-
-                        // Add user's answer as message with context
-                        setTimeout(() => {
-                            this.addMessage(`${this.getIconSVG('check', 16)} ${option}`, 'user');
-                            resolve();
-                        }, 300);
-
-                    } catch (error) {
-                        console.error('Error answering question:', error);
-                        this.showToast('답변 저장 실패', 'error');
-                        resolve();
-                    }
-                });
-
-                optionsDiv.appendChild(button);
-            });
-
-            questionDiv.appendChild(optionsDiv);
-            
-            // Add skip option
-            const skipBtn = document.createElement('button');
-            skipBtn.className = 'skip-question-btn';
-            skipBtn.innerHTML = `${this.getIconSVG('skip', 16)} 건너뛰기`;
-            skipBtn.addEventListener('click', () => {
-                this.addMessage(`${this.getIconSVG('skip', 16)} 건너뛰기`, 'user');
-                resolve();
-            });
-            questionDiv.appendChild(skipBtn);
-            
-            this.elements.messages.appendChild(questionDiv);
-            this.scrollToBottom();
-        });
-    }
-
-    /**
-     * Generate final LLM response
-     */
-    async generateResponse() {
-        try {
-            this.showLoading();
-
-            // Get generation settings
-            const internetMode = this.elements.internetModeToggle?.checked || false;
-            const specificityLevel = this.elements.specificityLevel?.value || '간결';
-            const preferredModel = this.elements.modelSelect?.value || '';
-
-            const result = await LoomonAIAPI.generateLLM(this.sessionId, {
-                quality: 'balanced',
-                internetMode: internetMode,
-                specificityLevel: specificityLevel,
-                preferred_model: preferredModel,
-            });
-
-            this.hideLoading();
-
-            // Save prompt history ID for feedback
-            this.currentPromptHistoryId = result.prompt_history_id;
-
-            // Add response to UI (with references if available)
-            this.addMessage(result.response, 'system', true, result.references);
-            
-            // 대화 제목 업데이트 (첫 메시지인 경우)
-            if (this.currentUser && this.currentConversation && this.conversationHistory.filter(m => m.role === 'user').length === 1) {
-                const firstUserMessage = this.conversationHistory.find(m => m.role === 'user');
-                if (firstUserMessage) {
-                    const title = firstUserMessage.content.substring(0, 50) + 
-                        (firstUserMessage.content.length > 50 ? '...' : '');
-                    try {
-                        await ConversationAPI.renameConversation(this.currentConversation, title);
-                        this.elements.chatTitle.textContent = title;
-                        await this.loadConversations(); // 목록 새로고침
-                    } catch (error) {
-                        console.error('Failed to update conversation title:', error);
-                    }
-                }
-            }
-
-            // Add to conversation history
-            this.conversationHistory.push({
-                role: 'assistant',
-                content: result.response,
-            });
-
-            // Show model info with settings
-            let modelInfo = `모델: ${this.getModelDisplayName(result.model_used)} | 토큰: ${result.tokens_used}`;
-            if (internetMode) {
-                modelInfo += ' | 🌐 인터넷 검색 사용';
-                if (result.references && result.references.length > 0) {
-                    modelInfo += ` (${result.references.length}개 참고자료)`;
-                }
-            }
-            modelInfo += ` | 구체성: ${specificityLevel}`;
-            this.addSystemInfo(modelInfo);
-
-            // Clear current questions
-            this.currentQuestions = [];
-            this.answeredQuestions.clear();
-
-        } catch (error) {
-            console.error('Error generating response:', error);
-            this.hideLoading();
-            this.showToast(`응답 생성 실패: ${error.message}`, 'error');
-            this.addMessage('응답을 생성하는 중 오류가 발생했습니다.', 'system');
-        }
-    }
-
-    /**
-     * Add a message to the chat
-     */
-    addMessage(content, type = 'system', withFeedback = false, references = null) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${type}`;
-
-        const bubble = document.createElement('div');
-        bubble.className = 'message-bubble';
-
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
-        contentDiv.textContent = content;
-
-        bubble.appendChild(contentDiv);
-
-        // Add timestamp
-        const time = document.createElement('div');
-        time.className = 'message-time';
-        time.textContent = new Date().toLocaleTimeString('ko-KR', {
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-        bubble.appendChild(time);
-
-        // Add references if available
-        if (references && references.length > 0) {
-            const referencesDiv = document.createElement('div');
-            referencesDiv.className = 'message-references';
-            referencesDiv.innerHTML = `<div class="references-title">${this.getIconSVG('book', 16)} 참고 자료</div>`;
-            
-            const referencesGrid = document.createElement('div');
-            referencesGrid.className = 'references-grid';
-            
-            references.forEach(ref => {
-                const refCard = document.createElement('a');
-                refCard.className = 'reference-card';
-                refCard.href = ref.url;
-                refCard.target = '_blank';
-                refCard.rel = 'noopener noreferrer';
-                refCard.innerHTML = `
-                    <div class="reference-icon">${this.getIconSVG('link', 16)}</div>
-                    <div class="reference-content">
-                        <div class="reference-title">${ref.title}</div>
-                        <div class="reference-url">${new URL(ref.url).hostname}</div>
-                    </div>
-                `;
-                referencesGrid.appendChild(refCard);
+        if (shouldAskQuestions) {
+            console.log('질문 생성 시작...', { 
+                isFirstMessage,
+                needs_clarification: intentResult.needs_clarification, 
+                completeness, 
+                specificity, 
+                confidence
             });
             
-            referencesDiv.appendChild(referencesGrid);
-            bubble.appendChild(referencesDiv);
-        }
-
-        // Add feedback buttons for system messages
-        if (withFeedback && type === 'system') {
-            const feedbackDiv = document.createElement('div');
-            feedbackDiv.className = 'feedback-buttons';
-
-            const positiveBtn = this.createFeedbackButton(`${this.getIconSVG('thumbs-up', 16)} 좋아요`, 'positive');
-            const negativeBtn = this.createFeedbackButton(`${this.getIconSVG('thumbs-down', 16)} 아쉬워요`, 'negative');
-
-            feedbackDiv.appendChild(positiveBtn);
-            feedbackDiv.appendChild(negativeBtn);
-            bubble.appendChild(feedbackDiv);
-        }
-
-        messageDiv.appendChild(bubble);
-        this.elements.messages.appendChild(messageDiv);
-
-        this.scrollToBottom();
-    }
-
-    /**
-     * Add system message (AI status updates)
-     */
-    addSystemMessage(content, iconType = 'robot') {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'system-status-message';
-        messageDiv.innerHTML = `
-            <div class="status-icon">${this.getIconSVG(iconType, 20)}</div>
-            <div class="status-text">${content}</div>
-        `;
-        this.elements.messages.appendChild(messageDiv);
-        this.scrollToBottom();
-    }
-
-    /**
-     * Add system info message
-     */
-    addSystemInfo(content) {
-        const infoDiv = document.createElement('div');
-        infoDiv.style.cssText = `
-            text-align: center;
-            padding: 8px;
-            margin: 8px 0;
-            font-size: 12px;
-            color: var(--text-tertiary);
-            font-family: monospace;
-        `;
-        infoDiv.textContent = content;
-        this.elements.messages.appendChild(infoDiv);
-    }
-
-    /**
-     * Create feedback button
-     */
-    createFeedbackButton(text, sentiment) {
-        const button = document.createElement('button');
-        button.className = `feedback-btn ${sentiment}`;
-        button.textContent = text;
-
-        button.addEventListener('click', async () => {
             try {
-                await LoomonAIAPI.submitFeedback(
-                    this.sessionId,
-                    `User ${sentiment} feedback`,
-                    sentiment,
-                    this.currentPromptHistoryId
-                );
-
-                button.disabled = true;
-                button.style.opacity = '0.5';
-                this.showToast('피드백이 전송되었습니다', 'success');
-
-            } catch (error) {
-                console.error('Error submitting feedback:', error);
-                this.showToast('피드백 전송 실패', 'error');
-            }
-        });
-
-        return button;
-    }
-
-    /**
-     * Show loading indicator
-     */
-    showLoading() {
-        this.elements.loadingIndicator.style.display = 'flex';
-        this.scrollToBottom();
-    }
-
-    /**
-     * Hide loading indicator
-     */
-    hideLoading() {
-        this.elements.loadingIndicator.style.display = 'none';
-    }
-
-    /**
-     * Scroll chat to bottom
-     */
-    scrollToBottom() {
-        setTimeout(() => {
-            if (this.elements.chatArea) {
-                this.elements.chatArea.scrollTop = this.elements.chatArea.scrollHeight;
-            }
-        }, 100);
-    }
-
-    /**
-     * Show toast notification
-     */
-    showToast(message, type = 'info') {
-        const toast = this.elements.toast;
-        toast.textContent = message;
-        toast.className = `toast ${type} show`;
-
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3000);
-    }
-
-    /**
-     * Update model selection UI based on subscription
-     */
-    async updateModelSelectionUI() {
-        if (!this.currentUser) {
-            this.elements.modelSelect.style.display = 'none';
-            return;
-        }
-
-        try {
-            const availableModels = await SubscriptionAPI.getAvailableModels();
-
-            // Clear existing options except "자동 선택"
-            this.elements.modelSelect.innerHTML = '<option value="">자동 선택</option>';
-
-            // Add available models
-            availableModels.forEach(model => {
-                if (model.is_available) {
-                    const option = document.createElement('option');
-                    option.value = model.model_name;
-                    option.textContent = this.getModelDisplayName(model.model_name);
-                    this.elements.modelSelect.appendChild(option);
-                }
-            });
-
-            // Show/hide model selector based on available models
-            const modelSelectContainer = document.getElementById('modelSelectContainer');
-            if (availableModels.length > 0 && modelSelectContainer) {
-                modelSelectContainer.style.display = 'inline-flex';
-            } else if (modelSelectContainer) {
-                modelSelectContainer.style.display = 'none';
-            }
-        } catch (error) {
-            console.error('Failed to update model selection UI:', error);
-            this.elements.modelSelect.style.display = 'none';
-        }
-    }
-
-    // ============ 구독 관련 메소드들 ============
-
-    /**
-     * Get display name for model
-     */
-    getModelDisplayName(modelName) {
-        const modelNames = {
-            'gpt-5-nano': '⚡ 빠른 응답',
-            'gpt-5-mini': '⚖️ 균형 잡힌 성능',
-            'gpt-5': '🧠 고품질 분석',
-            'gpt-4.1': '👨‍🔬 전문가 수준',
-            'gpt-4.1-mini': '🎯 효율적인 전문'
-        };
-        return modelNames[modelName] || modelName;
-    }
-
-    // ============ 구독 관련 메소드들 ============
-
-    /**
-     * Update subscription UI in sidebar
-     */
-    async updateSubscriptionUI() {
-        if (!this.currentUser) {
-            if (this.elements.subscriptionSection) {
-                this.elements.subscriptionSection.style.display = 'none';
-            }
-            return;
-        }
-
-        try {
-            // Get current subscription
-            const subscriptionResponse = await SubscriptionAPI.getCurrentSubscription();
-            const subscription = subscriptionResponse;
-
-            // Get usage stats
-            const usageStats = await SubscriptionAPI.getUsageStats();
-
-            // Update sidebar UI
-            if (this.elements.subscriptionPlan) {
-                this.elements.subscriptionPlan.textContent = subscription.plan.display_name;
-            }
-            if (this.elements.subscriptionUsage) {
-                this.elements.subscriptionUsage.textContent = `${usageStats.current_usage.toLocaleString()}/${usageStats.total_available.toLocaleString()} 토큰`;
-            }
-
-            // Update progress bar
-            if (this.elements.usageProgressFill) {
-                const progressPercent = usageStats.usage_percentage;
-                this.elements.usageProgressFill.style.width = `${Math.min(progressPercent, 100)}%`;
-
-                // Change color based on usage
-                if (progressPercent >= 90) {
-                    this.elements.usageProgressFill.style.background = 'linear-gradient(90deg, #EF4444 0%, #DC2626 100%)';
-                } else if (progressPercent >= 75) {
-                    this.elements.usageProgressFill.style.background = 'linear-gradient(90deg, #F59E0B 0%, #D97706 100%)';
+                // Intent ID 전달 (질문 생성 시 사용)
+                const intentId = intentResult.intent?.id || null;
+                
+                if (!intentId) {
+                    console.warn('Intent ID가 없어 질문 생성을 건너뜁니다.');
                 } else {
-                    this.elements.usageProgressFill.style.background = 'linear-gradient(90deg, var(--wise-green) 0%, var(--wise-teal) 100%)';
-                }
-            }
-
-            // Update model selection UI
-            await this.updateModelSelectionUI();
-
-            if (this.elements.subscriptionSection) {
-                this.elements.subscriptionSection.style.display = 'block';
-            }
-        } catch (error) {
-            console.error('Failed to update subscription UI:', error);
-            if (this.elements.subscriptionSection) {
-                this.elements.subscriptionSection.style.display = 'none';
-            }
-        }
-    }
-
-    /**
-     * Show subscription modal
-     */
-    showSubscriptionModal() {
-        this.elements.subscriptionModal.classList.remove('hidden');
-        this.loadSubscriptionTabContent('plans');
-    }
-
-    /**
-     * Hide subscription modal
-     */
-    hideSubscriptionModal() {
-        this.elements.subscriptionModal.classList.add('hidden');
-    }
-
-    /**
-     * Load subscription tab content
-     */
-    async loadSubscriptionTabContent(tabName) {
-        try {
-            switch (tabName) {
-                case 'plans':
-                    await this.loadPlansContent();
-                    break;
-                case 'usage':
-                    await this.loadUsageContent();
-                    break;
-                case 'invite':
-                    await this.loadInviteContent();
-                    break;
-                case 'payment':
-                    await this.loadPaymentContent();
-                    break;
-            }
-        } catch (error) {
-            console.error(`Failed to load ${tabName} content:`, error);
-            this.showToast('콘텐츠를 불러오는 중 오류가 발생했습니다.', 'error');
-        }
-    }
-
-    /**
-     * Load plans tab content
-     */
-    async loadPlansContent() {
-        try {
-            const plans = await SubscriptionAPI.getPlans();
-            const currentSubscription = await SubscriptionAPI.getCurrentSubscription();
-
-            const plansGrid = this.elements.plansGrid;
-            plansGrid.innerHTML = '';
-
-            plans.forEach(plan => {
-                const isCurrentPlan = currentSubscription.plan.id === plan.id;
-                const planCard = document.createElement('div');
-                planCard.className = `plan-card ${isCurrentPlan ? 'current' : ''}`;
-
-                planCard.innerHTML = `
-                    <div class="plan-header">
-                        <h4>${plan.display_name}</h4>
-                        ${isCurrentPlan ? '<span class="current-badge">현재 플랜</span>' : ''}
-                    </div>
-                    <div class="plan-price">
-                        $${plan.price}/월
-                    </div>
-                    <div class="plan-limits">
-                        월 ${plan.monthly_limit.toLocaleString()} 토큰
-                    </div>
-                    <div class="plan-description">
-                        ${plan.description}
-                    </div>
-                    <div class="plan-models">
-                        사용 가능 모델: ${plan.allowed_models.map(model => this.getModelDisplayName(model)).join(', ')}
-                    </div>
-                    ${plan.plan_type === 'free' ?
-                        '<button class="btn btn-secondary" disabled>무료 플랜</button>' :
-                        `<button class="btn btn-primary" onclick="app.changePlan('${plan.id}')">
-                            ${isCurrentPlan ? '현재 플랜' : '플랜 변경'}
-                        </button>`
+                    console.log('질문 생성 요청:', { session_id: intentResult.session_id, intent_id: intentId });
+                    const questionsResult = await generateQuestions(intentResult.session_id, intentId);
+                    
+                    if (questionsResult.questions && questionsResult.questions.length > 0) {
+                        console.log(`${questionsResult.questions.length}개의 질문 생성됨:`, questionsResult.questions.map(q => q.text));
+                        AppState.pendingQuestions = questionsResult.questions;
+                        AppState.currentQuestionIndex = 0;
+                        
+                        hideLoading();
+                        await processQuestions();
+                        return;
+                    } else {
+                        console.warn('생성된 질문이 없어 LLM 응답으로 진행');
                     }
-                `;
-
-                plansGrid.appendChild(planCard);
-            });
-        } catch (error) {
-            this.elements.plansGrid.innerHTML = '<p>플랜 정보를 불러올 수 없습니다.</p>';
-        }
-    }
-
-    /**
-     * Load usage tab content
-     */
-    async loadUsageContent() {
-        try {
-            const usageStats = await SubscriptionAPI.getUsageStats();
-
-            this.elements.usageDetails.innerHTML = `
-                <div class="usage-summary">
-                    <div class="usage-stat">
-                        <div class="stat-label">현재 사용량</div>
-                        <div class="stat-value">${usageStats.current_usage.toLocaleString()} 토큰</div>
-                    </div>
-                    <div class="usage-stat">
-                        <div class="stat-label">월 제한량</div>
-                        <div class="stat-value">${usageStats.monthly_limit.toLocaleString()} 토큰</div>
-                    </div>
-                    <div class="usage-stat">
-                        <div class="stat-label">보너스 토큰</div>
-                        <div class="stat-value">${usageStats.bonus_tokens.toLocaleString()} 토큰</div>
-                    </div>
-                    <div class="usage-stat">
-                        <div class="stat-label">총 사용 가능</div>
-                        <div class="stat-value">${usageStats.total_available.toLocaleString()} 토큰</div>
-                    </div>
-                    <div class="usage-stat">
-                        <div class="stat-label">남은 토큰</div>
-                        <div class="stat-value">${usageStats.remaining.toLocaleString()} 토큰</div>
-                    </div>
-                    <div class="usage-stat">
-                        <div class="stat-label">사용률</div>
-                        <div class="stat-value">${usageStats.usage_percentage}%</div>
-                    </div>
-                </div>
-                <div class="usage-progress-large">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${Math.min(usageStats.usage_percentage, 100)}%"></div>
-                    </div>
-                    <div class="progress-text">${usageStats.usage_percentage}% 사용됨</div>
-                </div>
-            `;
-        } catch (error) {
-            this.elements.usageDetails.innerHTML = '<p>사용량 정보를 불러올 수 없습니다.</p>';
-        }
-    }
-
-    /**
-     * Load invite tab content
-     */
-    async loadInviteContent() {
-        try {
-            const inviteStats = await InviteAPI.getStats();
-
-            this.elements.inviteStats.innerHTML = `
-                <div class="invite-stat">
-                    <div class="stat-label">총 초대</div>
-                    <div class="stat-value">${inviteStats.total_invites}</div>
-                </div>
-                <div class="invite-stat">
-                    <div class="stat-label">사용된 초대</div>
-                    <div class="stat-value">${inviteStats.used_invites}</div>
-                </div>
-                <div class="invite-stat">
-                    <div class="stat-label">받은 보너스 토큰</div>
-                    <div class="stat-value">${inviteStats.received_bonus_tokens.toLocaleString()}</div>
-                </div>
-            `;
-
-            // Load invite codes
-            await this.loadInviteCodes();
-        } catch (error) {
-            this.elements.inviteStats.innerHTML = '<p>초대 통계를 불러올 수 없습니다.</p>';
-        }
-    }
-
-    /**
-     * Load invite codes
-     */
-    async loadInviteCodes() {
-        try {
-            const inviteCodes = await InviteAPI.getCodes();
-
-            const inviteCodesContainer = this.elements.inviteCodes;
-            inviteCodesContainer.innerHTML = '';
-
-            if (inviteCodes.length === 0) {
-                inviteCodesContainer.innerHTML = '<p>생성된 초대 코드가 없습니다.</p>';
-                return;
-            }
-
-            inviteCodes.forEach(code => {
-                const codeItem = document.createElement('div');
-                codeItem.className = 'invite-code-item';
-
-                const statusText = code.is_used ? '사용됨' : '사용 가능';
-                const statusClass = code.is_used ? 'used' : 'available';
-
-                codeItem.innerHTML = `
-                    <div class="code-info">
-                        <div class="code-text">${code.code}</div>
-                        <div class="code-status ${statusClass}">${statusText}</div>
-                    </div>
-                    <div class="code-actions">
-                        <button class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('${code.code}').then(() => app.showToast('초대 코드가 복사되었습니다.', 'success'))">
-                            복사
-                        </button>
-                    </div>
-                `;
-
-                inviteCodesContainer.appendChild(codeItem);
-            });
-        } catch (error) {
-            this.elements.inviteCodes.innerHTML = '<p>초대 코드를 불러올 수 없습니다.</p>';
-        }
-    }
-
-    /**
-     * Load payment tab content
-     */
-    async loadPaymentContent() {
-        try {
-            const accountInfo = await PaymentAPI.getAccountInfo();
-            const paymentRequests = await PaymentAPI.getStatus();
-
-            let paymentContent = `
-                <div class="payment-info">
-                    <h4>입금 정보</h4>
-                    <div class="account-details">
-                        <div class="account-item">
-                            <span class="account-label">은행:</span>
-                            <span class="account-value">${accountInfo.bank_name}</span>
-                        </div>
-                        <div class="account-item">
-                            <span class="account-label">계좌번호:</span>
-                            <span class="account-value">${accountInfo.account_number}</span>
-                        </div>
-                        <div class="account-item">
-                            <span class="account-label">예금주:</span>
-                            <span class="account-value">${accountInfo.account_holder}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="payment-actions">
-                    <button class="btn btn-primary" onclick="app.requestBasicPlan()">Basic 플랜 구매 ($9.99)</button>
-                    <button class="btn btn-primary" onclick="app.requestProPlan()">Pro 플랜 구매 ($39.99)</button>
-                </div>
-            `;
-
-            if (paymentRequests.length > 0) {
-                paymentContent += `
-                    <div class="payment-history">
-                        <h4>결제 내역</h4>
-                        <div class="payment-requests">
-                `;
-
-                paymentRequests.slice(0, 3).forEach(request => {
-                    const statusText = {
-                        'pending': '대기중',
-                        'deposit_confirmed': '입금 확인 대기',
-                        'approved': '승인됨',
-                        'rejected': '거부됨'
-                    }[request.status] || request.status;
-
-                    paymentContent += `
-                        <div class="payment-request-item">
-                            <div class="request-info">
-                                <div class="request-plan">${request.plan.display_name}</div>
-                                <div class="request-date">${new Date(request.requested_at).toLocaleDateString()}</div>
-                            </div>
-                            <div class="request-status status-${request.status}">${statusText}</div>
-                            ${request.status === 'pending' ? `<button class="btn btn-sm btn-secondary" onclick="app.confirmDeposit('${request.id}')">입금 완료</button>` : ''}
-                        </div>
-                    `;
+                }
+            } catch (error) {
+                console.error('질문 생성 실패:', error);
+                const errorMessage = error.message || '질문 생성 중 오류가 발생했습니다.';
+                console.error('질문 생성 오류 상세:', {
+                    message: errorMessage,
+                    session_id: intentResult.session_id,
+                    intent_id: intentResult.intent?.id,
+                    error: error
                 });
-
-                paymentContent += `
-                        </div>
-                    </div>
-                `;
+                showNotification(`질문 생성 중 오류가 발생했습니다: ${errorMessage}. 바로 답변을 생성합니다.`, 'warning');
+                // 질문 생성 실패해도 LLM 응답으로 진행
             }
-
-            this.elements.paymentSection.innerHTML = paymentContent;
-        } catch (error) {
-            this.elements.paymentSection.innerHTML = '<p>결제 정보를 불러올 수 없습니다.</p>';
+        } else {
+            console.log('질문 생성 건너뛰기 - 매우 명확한 요청', { completeness, specificity, confidence });
         }
-    }
-
-    /**
-     * Handle create invite code
-     */
-    async handleCreateInviteCode() {
-        try {
-            const inviteCode = await InviteAPI.createCode();
-            this.showToast('초대 코드가 생성되었습니다!', 'success');
-            await this.loadInviteCodes();
-        } catch (error) {
-            this.showToast('초대 코드 생성에 실패했습니다.', 'error');
-        }
-    }
-
-    /**
-     * Handle use invite code
-     */
-    async handleUseInviteBtn() {
-        const code = this.elements.inviteCodeInput.value.trim();
-        if (!code) {
-            this.showToast('초대 코드를 입력해주세요.', 'error');
-            return;
-        }
-
-        try {
-            const result = await InviteAPI.useCode(code);
-            this.showToast(result.message, 'success');
-            this.elements.inviteCodeInput.value = '';
-            await this.loadInviteContent();
-            await this.updateSubscriptionUI();
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        }
-    }
-
-    /**
-     * Change plan
-     */
-    async changePlan(planId) {
-        try {
-            await SubscriptionAPI.changePlan(planId);
-            this.showToast('플랜이 변경되었습니다!', 'success');
-            await this.updateSubscriptionUI();
-            await this.loadPlansContent();
-        } catch (error) {
-            this.showToast('플랜 변경에 실패했습니다.', 'error');
-        }
-    }
-
-    /**
-     * Request Basic plan
-     */
-    async requestBasicPlan() {
-        await this.requestPlan('basic');
-    }
-
-    /**
-     * Request Pro plan
-     */
-    async requestProPlan() {
-        await this.requestPlan('pro');
-    }
-
-    /**
-     * Request plan
-     */
-    async requestPlan(planType) {
-        try {
-            const plan = await SubscriptionAPI.getPlanByType(planType);
-            await PaymentAPI.requestPayment(plan.id);
-            this.showToast('결제 요청이 생성되었습니다. 계좌 정보를 확인해주세요.', 'success');
-            await this.loadPaymentContent();
-        } catch (error) {
-            this.showToast('결제 요청 생성에 실패했습니다.', 'error');
-        }
-    }
-
-    /**
-     * Confirm deposit
-     */
-    async confirmDeposit(paymentRequestId) {
-        try {
-            await PaymentAPI.confirmDeposit(paymentRequestId);
-            this.showToast('입금 완료 신청이 처리되었습니다. 관리자 승인을 기다려주세요.', 'success');
-            await this.loadPaymentContent();
-        } catch (error) {
-            this.showToast('입금 완료 신청에 실패했습니다.', 'error');
-        }
+        
+        // 3. LLM 응답 생성
+        hideLoading();
+        showLoading('AI가 응답을 생성하는 중입니다...');
+        
+        const internetMode = document.getElementById('internetMode').checked;
+        const specificityLevel = document.getElementById('specificityLevel').value;
+        
+        console.log('LLM 생성 요청:', { session_id: intentResult.session_id, userInput, internetMode, specificityLevel });
+        
+        const llmResult = await generateLLMResponse(intentResult.session_id, {
+            userInput,
+            internetMode,
+            specificityLevel,
+        });
+        
+        hideLoading();
+        
+        // AI 메시지 표시
+        const aiMessage = {
+            role: 'assistant',
+            content: llmResult.response,
+            references: llmResult.references || [],
+            metadata: {
+                prompt_history_id: llmResult.prompt_history_id,
+                model_used: llmResult.model_used,
+                tokens_used: llmResult.tokens_used,
+            },
+        };
+        
+        renderMessage(aiMessage, document.getElementById('messagesContainer'));
+        await createMessage(AppState.currentConversation, 'assistant', llmResult.response, aiMessage.metadata);
+        
+    } catch (error) {
+        hideLoading();
+        showNotification(error.message || '오류가 발생했습니다.', 'error');
+        console.error('채팅 플로우 오류:', error);
     }
 }
 
-// Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new LoomonAIApp();
-});
+// 질문 처리
+async function processQuestions() {
+    if (AppState.currentQuestionIndex >= AppState.pendingQuestions.length) {
+        // 모든 질문 답변 완료, LLM 생성
+        showLoading('AI가 응답을 생성하는 중입니다...');
+        
+        const internetMode = document.getElementById('internetMode').checked;
+        const specificityLevel = document.getElementById('specificityLevel').value;
+        
+        const llmResult = await generateLLMResponse(AppState.currentSessionId, {
+            internetMode,
+            specificityLevel,
+        });
+        
+        hideLoading();
+        
+        const aiMessage = {
+            role: 'assistant',
+            content: llmResult.response,
+            references: llmResult.references || [],
+            metadata: {
+                prompt_history_id: llmResult.prompt_history_id,
+                model_used: llmResult.model_used,
+                tokens_used: llmResult.tokens_used,
+            },
+        };
+        
+        renderMessage(aiMessage, document.getElementById('messagesContainer'));
+        await createMessage(AppState.currentConversation, 'assistant', llmResult.response, aiMessage.metadata);
+        
+        return;
+    }
+    
+    const question = AppState.pendingQuestions[AppState.currentQuestionIndex];
+    
+    renderQuestion(question, document.getElementById('messagesContainer'), async (questionText, answer) => {
+        await answerQuestion(AppState.currentSessionId, questionText, answer);
+        AppState.hasAnsweredQuestions = true;  // 질문에 답변했음을 표시
+        AppState.currentQuestionIndex++;
+        await processQuestions();
+    });
+}
+
+// 대화 관리
+async function loadConversations() {
+    try {
+        const conversations = await getConversations();
+        AppState.conversations = conversations;
+        renderConversationList(
+            conversations,
+            document.getElementById('conversationList'),
+            handleConversationSelect,
+            handleConversationDelete
+        );
+    } catch (error) {
+        console.error('대화 목록 로드 오류:', error);
+    }
+}
+
+async function handleNewConversation() {
+    AppState.currentConversation = null;
+    AppState.currentSessionId = null;
+    AppState.messages = [];
+    AppState.pendingQuestions = [];
+    AppState.currentQuestionIndex = 0;
+    AppState.hasAnsweredQuestions = false;  // 새 대화 시작 시 초기화
+    AppState.session = null;
+    
+    const messagesContainer = document.getElementById('messagesContainer');
+    messagesContainer.innerHTML = '';
+    renderWelcomeScreen(messagesContainer);
+    
+    // 활성 대화 표시 제거
+    document.querySelectorAll('.conversation-item').forEach(item => {
+        item.classList.remove('active');
+    });
+}
+
+async function handleConversationSelect(conversationId) {
+    AppState.currentConversation = conversationId;
+    
+    // 활성 대화 표시
+    document.querySelectorAll('.conversation-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.conversationId === conversationId);
+    });
+    
+    // 메시지 로드
+    try {
+        const messages = await getMessages(conversationId);
+        AppState.messages = messages;
+        
+        const messagesContainer = document.getElementById('messagesContainer');
+        messagesContainer.innerHTML = '';
+        
+        if (messages.length === 0) {
+            renderWelcomeScreen(messagesContainer);
+        } else {
+            messages.forEach(msg => {
+                const messageObj = {
+                    role: msg.role,
+                    content: msg.content,
+                    metadata: msg.metadata,
+                };
+                if (msg.metadata && msg.metadata.references) {
+                    messageObj.references = msg.metadata.references;
+                }
+                renderMessage(messageObj, messagesContainer);
+            });
+        }
+    } catch (error) {
+        console.error('메시지 로드 오류:', error);
+        showNotification('대화를 불러오는 중 오류가 발생했습니다.', 'error');
+    }
+}
+
+async function handleConversationDelete(conversationId) {
+    try {
+        await deleteConversation(conversationId);
+        await loadConversations();
+        
+        if (AppState.currentConversation === conversationId) {
+            handleNewConversation();
+        }
+        
+        showNotification('대화가 삭제되었습니다.', 'success');
+    } catch (error) {
+        console.error('대화 삭제 오류:', error);
+        showNotification('대화 삭제 중 오류가 발생했습니다.', 'error');
+    }
+}
+
+// 인증 처리
+async function handleLogin(username, password) {
+    try {
+        showLoading('로그인 중...');
+        const user = await login(username, password);
+        hideLoading();
+        
+        AppState.currentUser = user;
+        updateUIForUser(user);
+        hideModal('authModal');
+        showNotification('로그인되었습니다.', 'success');
+        
+        await loadConversations();
+    } catch (error) {
+        hideLoading();
+        showNotification(error.message || '로그인에 실패했습니다.', 'error');
+    }
+}
+
+async function handleRegister(username, email, password, bio) {
+    try {
+        showLoading('회원가입 중...');
+        const user = await register(username, email, password, bio);
+        hideLoading();
+        
+        AppState.currentUser = user;
+        updateUIForUser(user);
+        hideModal('authModal');
+        showNotification('회원가입이 완료되었습니다.', 'success');
+        
+        await loadConversations();
+    } catch (error) {
+        hideLoading();
+        showNotification(error.message || '회원가입에 실패했습니다.', 'error');
+    }
+}
+
+function updateUIForUser(user) {
+    // 프로필 버튼 업데이트
+    const btnProfile = document.getElementById('btnProfile');
+    if (btnProfile) {
+        btnProfile.innerHTML = `<span>👤</span> ${user.username}`;
+    }
+}
+
+// 모달 표시 함수들
+async function showProfileModal() {
+    const modal = document.getElementById('profileModal');
+    const content = document.getElementById('profileContent');
+    
+    if (!AppState.currentUser) {
+        showModal('authModal');
+        return;
+    }
+    
+    const user = AppState.currentUser;
+    content.innerHTML = `
+        <div class="profile-section">
+            <div class="profile-field">
+                <label>사용자명</label>
+                <input type="text" id="profileUsername" value="${escapeHtml(user.username || '')}" readonly>
+            </div>
+            <div class="profile-field">
+                <label>이메일</label>
+                <input type="email" id="profileEmail" value="${escapeHtml(user.email || '')}" readonly>
+            </div>
+            <div class="profile-field">
+                <label>소개</label>
+                <textarea id="profileBio" rows="4">${escapeHtml(user.bio || '')}</textarea>
+            </div>
+            <div class="profile-field">
+                <label>프로필 이미지 URL</label>
+                <input type="url" id="profileAvatar" value="${escapeHtml(user.avatar || '')}" placeholder="https://...">
+            </div>
+            <div class="profile-field">
+                <label>이메일 인증</label>
+                <div class="email-verification-status">
+                    ${user.email_verified ? '<span class="status-badge success">✓ 인증 완료</span>' : '<span class="status-badge error">✗ 미인증</span>'}
+                    ${!user.email_verified ? '<button class="btn-resend-verification btn-primary">인증 이메일 재발송</button>' : ''}
+                </div>
+            </div>
+            <div class="profile-actions">
+                <button class="btn-primary" id="btnSaveProfile">저장</button>
+                <button class="btn-logout btn-secondary" id="btnLogout">로그아웃</button>
+            </div>
+        </div>
+    `;
+    
+    // 저장 버튼
+    document.getElementById('btnSaveProfile').addEventListener('click', async () => {
+        const bio = document.getElementById('profileBio').value;
+        const avatar = document.getElementById('profileAvatar').value;
+        
+        try {
+            showLoading('저장 중...');
+            const updated = await updateUser({ bio, avatar });
+            AppState.currentUser = updated;
+            hideLoading();
+            hideModal('profileModal');
+            showNotification('프로필이 업데이트되었습니다.', 'success');
+        } catch (error) {
+            hideLoading();
+            showNotification(error.message || '저장에 실패했습니다.', 'error');
+        }
+    });
+    
+    // 재발송 버튼
+    const resendBtn = document.querySelector('.btn-resend-verification');
+    if (resendBtn) {
+        resendBtn.addEventListener('click', async () => {
+            try {
+                showLoading('이메일 발송 중...');
+                await resendVerification();
+                hideLoading();
+                showNotification('인증 이메일이 재발송되었습니다.', 'success');
+            } catch (error) {
+                hideLoading();
+                showNotification(error.message || '이메일 발송에 실패했습니다.', 'error');
+            }
+        });
+    }
+    
+    // 로그아웃 버튼
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+        try {
+            await logout();
+            AppState.currentUser = null;
+            AppState.currentConversation = null;
+            AppState.conversations = [];
+            updateUIForUser(null);
+            hideModal('profileModal');
+            showNotification('로그아웃되었습니다.', 'success');
+            await handleNewConversation();
+        } catch (error) {
+            showNotification(error.message || '로그아웃에 실패했습니다.', 'error');
+        }
+    });
+    
+    // 모달 닫기
+    document.getElementById('profileModalClose').addEventListener('click', () => {
+        hideModal('profileModal');
+    });
+    
+    showModal('profileModal');
+}
+
+async function showSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    
+    if (!AppState.currentUser) {
+        showModal('authModal');
+        return;
+    }
+    
+    // 커스텀 지침 로드
+    try {
+        const instructions = await getCustomInstructions();
+        const instructionsTextarea = document.getElementById('customInstructions');
+        const instructionsActive = document.getElementById('customInstructionsActive');
+        
+        if (instructions) {
+            instructionsTextarea.value = instructions.instructions || '';
+            instructionsActive.checked = instructions.is_active || false;
+        } else {
+            instructionsTextarea.value = '';
+            instructionsActive.checked = false;
+        }
+    } catch (error) {
+        console.error('커스텀 지침 로드 오류:', error);
+    }
+    
+    // 저장 버튼
+    document.getElementById('btnSaveCustomInstructions').addEventListener('click', async () => {
+        const instructions = document.getElementById('customInstructions').value;
+        const isActive = document.getElementById('customInstructionsActive').checked;
+        
+        try {
+            showLoading('저장 중...');
+            await saveCustomInstructions(instructions, isActive);
+            hideLoading();
+            hideModal('settingsModal');
+            showNotification('커스텀 지침이 저장되었습니다.', 'success');
+        } catch (error) {
+            hideLoading();
+            showNotification(error.message || '저장에 실패했습니다.', 'error');
+        }
+    });
+    
+    // 모달 닫기
+    document.getElementById('settingsModalClose').addEventListener('click', () => {
+        hideModal('settingsModal');
+    });
+    
+    showModal('settingsModal');
+}
+
+async function showSubscriptionModal() {
+    const modal = document.getElementById('subscriptionModal');
+    
+    if (!AppState.currentUser) {
+        showModal('authModal');
+        return;
+    }
+    
+    // 탭 전환
+    document.querySelectorAll('.subscription-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.tab;
+            document.querySelectorAll('.subscription-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.subscription-content').forEach(c => c.classList.remove('active'));
+            
+            tab.classList.add('active');
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+            
+            // 탭별 콘텐츠 로드
+            if (tabName === 'plans') loadPlansTab();
+            else if (tabName === 'usage') loadUsageTab();
+            else if (tabName === 'invite') loadInviteTab();
+            else if (tabName === 'payment') loadPaymentTab();
+        });
+    });
+    
+    // 초기 탭 로드
+    loadPlansTab();
+    
+    // 모달 닫기
+    document.getElementById('subscriptionModalClose').addEventListener('click', () => {
+        hideModal('subscriptionModal');
+    });
+    
+    showModal('subscriptionModal');
+}
+
+// 구독 모달 탭별 로드 함수들
+async function loadPlansTab() {
+    const container = document.getElementById('subscriptionPlansList');
+    
+    try {
+        showLoading('플랜 로드 중...');
+        const plansResponse = await getSubscriptionPlans();
+        // DRF 페이지네이션 응답 형식 처리
+        const plans = plansResponse.results || plansResponse;
+        
+        // 현재 구독 정보 가져오기 (로그인한 경우만)
+        let currentSub = null;
+        try {
+            if (AppState.currentUser) {
+                currentSub = await getCurrentSubscription();
+            }
+        } catch (error) {
+            console.warn('현재 구독 정보 로드 실패:', error);
+            // 구독 정보 없이 계속 진행
+        }
+        
+        hideLoading();
+        
+        if (!plans || plans.length === 0) {
+            container.innerHTML = '<div class="error-message">사용 가능한 플랜이 없습니다.</div>';
+            return;
+        }
+        
+        container.innerHTML = plans.map(plan => {
+            const isSelected = currentSub && currentSub.plan.id === plan.id;
+            return `
+                <div class="plan-card ${isSelected ? 'selected' : ''}" data-plan-id="${plan.id}">
+                    <div class="plan-name">${escapeHtml(plan.display_name)}</div>
+                    <div class="plan-price">$${parseFloat(plan.price).toFixed(2)}<span style="font-size: 0.75rem;">/월</span></div>
+                    <div class="plan-description">${escapeHtml(plan.description || '')}</div>
+                    <ul class="plan-features">
+                        <li>월 ${(plan.monthly_limit / 1000).toFixed(0)}K 토큰</li>
+                        <li>모델: ${plan.allowed_models.join(', ')}</li>
+                    </ul>
+                    ${!isSelected && plan.plan_type !== 'free' ? 
+                        `<button class="btn-select-plan btn-primary" data-plan-id="${plan.id}">선택</button>` : 
+                        isSelected ? '<div class="plan-selected">현재 플랜</div>' : ''}
+                </div>
+            `;
+        }).join('');
+        
+        // 플랜 선택 버튼
+        container.querySelectorAll('.btn-select-plan').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const planId = btn.dataset.planId;
+                try {
+                    showLoading('플랜 변경 중...');
+                    await changeSubscription(planId);
+                    hideLoading();
+                    showNotification('플랜 변경을 위해 결제가 필요합니다. 결제 탭으로 이동하세요.', 'info');
+                } catch (error) {
+                    hideLoading();
+                    if (error.message.includes('결제')) {
+                        showNotification('유료 플랜은 결제가 필요합니다. 결제 탭으로 이동하세요.', 'info');
+                    } else {
+                        showNotification(error.message || '플랜 변경에 실패했습니다.', 'error');
+                    }
+                }
+            });
+        });
+    } catch (error) {
+        hideLoading();
+        console.error('플랜 로드 오류:', error);
+        const errorMsg = error.message || '플랜을 불러오는 중 오류가 발생했습니다.';
+        container.innerHTML = `<div class="error-message">${escapeHtml(errorMsg)}</div>`;
+    }
+}
+
+async function loadUsageTab() {
+    const container = document.getElementById('usageStats');
+    
+    try {
+        showLoading('사용량 로드 중...');
+        const stats = await getUsageStats();
+        hideLoading();
+        
+        const usagePercent = stats.usage_percentage || 0;
+        const progressColor = usagePercent > 80 ? 'var(--error)' : usagePercent > 60 ? 'var(--warning)' : 'var(--success)';
+        
+        container.innerHTML = `
+            <div class="usage-card">
+                <div class="usage-item">
+                    <label>사용한 토큰</label>
+                    <div class="usage-value">${(stats.current_usage / 1000).toFixed(0)}K / ${(stats.monthly_limit / 1000).toFixed(0)}K</div>
+                </div>
+                <div class="usage-progress">
+                    <div class="usage-progress-bar" style="width: ${usagePercent}%; background: ${progressColor}"></div>
+                </div>
+                <div class="usage-item">
+                    <label>남은 토큰</label>
+                    <div class="usage-value">${(stats.remaining / 1000).toFixed(0)}K</div>
+                </div>
+                <div class="usage-item">
+                    <label>보너스 토큰</label>
+                    <div class="usage-value">${(stats.bonus_tokens / 1000).toFixed(0)}K</div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        hideLoading();
+        container.innerHTML = '<div class="error-message">사용량을 불러오는 중 오류가 발생했습니다.</div>';
+    }
+}
+
+async function loadInviteTab() {
+    const container = document.getElementById('inviteContent');
+    
+    try {
+        showLoading('초대 정보 로드 중...');
+        const [codes, stats] = await Promise.all([
+            listInviteCodes(),
+            getInviteStats(),
+        ]);
+        hideLoading();
+        
+        container.innerHTML = `
+            <div class="invite-section">
+                <h3>초대 코드 생성</h3>
+                <button class="btn-create-invite btn-primary">새 초대 코드 생성</button>
+                <div id="newInviteCode" style="margin-top: 1rem; display: none;">
+                    <div class="invite-code-display">
+                        <input type="text" id="generatedInviteCode" readonly>
+                        <button class="btn-copy-invite">복사</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="invite-section">
+                <h3>초대 통계</h3>
+                <div class="invite-stats">
+                    <div class="stat-item">
+                        <label>전체 초대</label>
+                        <div class="stat-value">${stats.total_invites}</div>
+                    </div>
+                    <div class="stat-item">
+                        <label>사용된 초대</label>
+                        <div class="stat-value">${stats.used_invites}</div>
+                    </div>
+                    <div class="stat-item">
+                        <label>대기 중인 초대</label>
+                        <div class="stat-value">${stats.pending_invites}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="invite-section">
+                <h3>초대 코드 사용</h3>
+                <div class="invite-use-form">
+                    <input type="text" id="inviteCodeInput" placeholder="초대 코드 입력">
+                    <button class="btn-use-invite btn-primary">사용</button>
+                </div>
+            </div>
+            
+            <div class="invite-section">
+                <h3>내가 생성한 초대 코드</h3>
+                <div id="inviteCodesList">
+                    ${codes.length === 0 ? '<p>생성한 초대 코드가 없습니다.</p>' : ''}
+                    ${codes.map(code => `
+                        <div class="invite-code-item">
+                            <div class="invite-code-text">${escapeHtml(code.code)}</div>
+                            <div class="invite-code-status">${code.is_used ? '✓ 사용됨' : '○ 사용 가능'}</div>
+                            ${code.used_at ? `<div class="invite-code-date">${new Date(code.used_at).toLocaleDateString('ko-KR')}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        // 초대 코드 생성
+        document.querySelector('.btn-create-invite').addEventListener('click', async () => {
+            try {
+                showLoading('초대 코드 생성 중...');
+                const code = await createInviteCode();
+                hideLoading();
+                
+                const newCodeDiv = document.getElementById('newInviteCode');
+                document.getElementById('generatedInviteCode').value = code.code;
+                newCodeDiv.style.display = 'block';
+                showNotification('초대 코드가 생성되었습니다.', 'success');
+            } catch (error) {
+                hideLoading();
+                showNotification(error.message || '초대 코드 생성에 실패했습니다.', 'error');
+            }
+        });
+        
+        // 초대 코드 복사
+        const copyBtn = document.querySelector('.btn-copy-invite');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                const codeInput = document.getElementById('generatedInviteCode');
+                codeInput.select();
+                document.execCommand('copy');
+                showNotification('초대 코드가 복사되었습니다.', 'success');
+            });
+        }
+        
+        // 초대 코드 사용
+        document.querySelector('.btn-use-invite').addEventListener('click', async () => {
+            const code = document.getElementById('inviteCodeInput').value.trim();
+            if (!code) {
+                showNotification('초대 코드를 입력하세요.', 'error');
+                return;
+            }
+            
+            try {
+                showLoading('초대 코드 사용 중...');
+                const result = await useInviteCode(code);
+                hideLoading();
+                document.getElementById('inviteCodeInput').value = '';
+                showNotification(result.message || '초대 코드가 사용되었습니다.', 'success');
+                await loadUsageTab(); // 사용량 새로고침
+            } catch (error) {
+                hideLoading();
+                showNotification(error.message || '초대 코드 사용에 실패했습니다.', 'error');
+            }
+        });
+    } catch (error) {
+        hideLoading();
+        container.innerHTML = '<div class="error-message">초대 정보를 불러오는 중 오류가 발생했습니다.</div>';
+    }
+}
+
+async function loadPaymentTab() {
+    const container = document.getElementById('paymentContent');
+    
+    try {
+        showLoading('결제 정보 로드 중...');
+        const [accountInfo, paymentStatus] = await Promise.all([
+            getAccountInfo(),
+            getPaymentStatus(),
+        ]);
+        hideLoading();
+        
+        container.innerHTML = `
+            <div class="payment-section">
+                <h3>계좌 정보</h3>
+                <div class="account-info">
+                    <div class="account-item">
+                        <label>은행명</label>
+                        <div>${escapeHtml(accountInfo.bank_name)}</div>
+                    </div>
+                    <div class="account-item">
+                        <label>계좌번호</label>
+                        <div>${escapeHtml(accountInfo.account_number)}</div>
+                    </div>
+                    <div class="account-item">
+                        <label>예금주</label>
+                        <div>${escapeHtml(accountInfo.account_holder)}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="payment-section">
+                <h3>결제 요청 생성</h3>
+                <p>플랜을 선택한 후 입금 완료 신청을 해주세요.</p>
+            </div>
+            
+            <div class="payment-section">
+                <h3>결제 내역</h3>
+                <div id="paymentHistory">
+                    ${paymentStatus.length === 0 ? '<p>결제 내역이 없습니다.</p>' : ''}
+                    ${paymentStatus.map(payment => `
+                        <div class="payment-item">
+                            <div class="payment-plan">${escapeHtml(payment.plan?.display_name || '')}</div>
+                            <div class="payment-status status-${payment.status}">${getPaymentStatusText(payment.status)}</div>
+                            ${payment.status === 'pending' && !payment.deposit_confirmed ? 
+                                `<button class="btn-confirm-deposit btn-primary" data-payment-id="${payment.id}">입금 완료 신청</button>` : ''}
+                            <div class="payment-date">${new Date(payment.requested_at).toLocaleDateString('ko-KR')}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        // 입금 완료 신청 버튼
+        container.querySelectorAll('.btn-confirm-deposit').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const paymentId = btn.dataset.paymentId;
+                if (!confirm('입금 완료 신청을 하시겠습니까?')) return;
+                
+                try {
+                    showLoading('입금 완료 신청 중...');
+                    await confirmDeposit(paymentId);
+                    hideLoading();
+                    showNotification('입금 완료 신청이 처리되었습니다. 관리자 승인을 기다려주세요.', 'success');
+                    await loadPaymentTab(); // 새로고침
+                } catch (error) {
+                    hideLoading();
+                    showNotification(error.message || '입금 완료 신청에 실패했습니다.', 'error');
+                }
+            });
+        });
+    } catch (error) {
+        hideLoading();
+        container.innerHTML = '<div class="error-message">결제 정보를 불러오는 중 오류가 발생했습니다.</div>';
+    }
+}
+
+function getPaymentStatusText(status) {
+    const statusMap = {
+        'pending': '대기중',
+        'deposit_confirmed': '입금 완료 신청',
+        'approved': '승인됨',
+        'rejected': '거부됨',
+    };
+    return statusMap[status] || status;
+}
+
+// 피드백 처리
+async function handleFeedback(sentiment, promptHistoryId) {
+    if (!AppState.currentSessionId) {
+        showNotification('세션이 없습니다.', 'error');
+        return;
+    }
+    
+    const feedbackText = sentiment === 'positive' ? '좋아요' : '아쉬워요';
+    
+    try {
+        await submitFeedback(AppState.currentSessionId, feedbackText, sentiment, promptHistoryId);
+        showNotification('피드백이 전송되었습니다.', 'success');
+    } catch (error) {
+        showNotification(error.message || '피드백 전송에 실패했습니다.', 'error');
+    }
+}
+

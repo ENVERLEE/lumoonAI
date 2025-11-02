@@ -23,5 +23,5 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('core.urls')),
-    # Frontend removed - using Next.js now
+    # Frontend is served separately - Django only provides API
 ]

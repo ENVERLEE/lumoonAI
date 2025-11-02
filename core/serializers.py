@@ -154,10 +154,12 @@ class FeedbackSerializer(serializers.ModelSerializer):
 class IntentParseRequestSerializer(serializers.Serializer):
     """Intent 파싱 요청"""
     user_input = serializers.CharField(required=True, help_text="사용자 입력")
-    session_id = serializers.UUIDField(required=False, help_text="세션 ID (선택적)")
+    session_id = serializers.UUIDField(required=False, allow_null=True, help_text="세션 ID (선택적)")
     history = serializers.ListField(
         child=serializers.CharField(),
         required=False,
+        allow_null=True,
+        default=[],
         help_text="대화 히스토리"
     )
 
@@ -214,28 +216,38 @@ class PromptSynthesizeResponseSerializer(serializers.Serializer):
 class LLMGenerateRequestSerializer(serializers.Serializer):
     """LLM 생성 요청"""
     session_id = serializers.UUIDField(required=True)
-    prompt = serializers.CharField(required=False, help_text="프롬프트 (없으면 자동 합성)")
-    user_input = serializers.CharField(required=False, help_text="사용자 입력")
+    prompt = serializers.CharField(required=False, allow_blank=True, help_text="프롬프트 (없으면 자동 합성)")
+    user_input = serializers.CharField(required=False, allow_blank=True, help_text="사용자 입력")
     quality = serializers.ChoiceField(
         choices=['low', 'balanced', 'high'],
         default='balanced',
+        required=False,
         help_text="품질 수준"
     )
     temperature = serializers.FloatField(
         required=False,
+        allow_null=True,
         min_value=0.0,
         max_value=2.0,
         help_text="생성 온도"
     )
-    max_tokens = serializers.IntegerField(required=False, help_text="최대 토큰 수")
+    max_tokens = serializers.IntegerField(required=False, allow_null=True, help_text="최대 토큰 수")
     internet_mode = serializers.BooleanField(
         default=False,
+        required=False,
         help_text="인터넷 검색 모드 (Perplexity Sonar 사용)"
     )
     specificity_level = serializers.ChoiceField(
         choices=['짧음', '간결', '보통', '구체적', '매우 구체적'],
         default='매우 구체적',
+        required=False,
         help_text="답변의 구체성 수준"
+    )
+    preferred_model = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text="선호하는 모델 (선택적)"
     )
 
 

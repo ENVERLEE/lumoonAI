@@ -48,9 +48,18 @@ class IntentParseResult:
             'confidence': self.confidence,
         }
     
-    def needs_clarification(self, threshold: float = 0.7) -> bool:
-        """명확화가 필요한지 판단"""
-        return self.confidence < threshold
+    def needs_clarification(self, threshold: float = 0.85) -> bool:
+        """명확화가 필요한지 판단
+        
+        Args:
+            threshold: confidence 임계값 (기본값 0.85, 높을수록 더 자주 질문 생성)
+        
+        Returns:
+            질문이 필요한지 여부
+        """
+        # confidence가 낮거나, completeness가 불완전한 경우 질문 생성
+        # threshold를 0.85로 높여서 대부분의 경우 질문이 생성되도록 함
+        return self.confidence < threshold or self.completeness != 'COMPLETE'
 
 
 class IntentParser:

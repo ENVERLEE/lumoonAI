@@ -1,275 +1,135 @@
-/**
- * API Client for Loomon AI Backend
- * 
- * Provides wrapper functions for all backend API endpoints
- */
-
-const API_BASE_URL = 'http://localhost:8000/api';
+// 핵심 API 함수들 (Intent, 질문, LLM 생성)
 
 /**
- * Generic fetch wrapper with error handling
- */
-async function apiFetch(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
-    const config = {
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
-        credentials: 'include',  // 세션 쿠키 포함
-        ...options,
-    };
-
-    try {
-        const response = await fetch(url, config);
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error(`API Error (${endpoint}):`, error);
-        throw error;
-    }
-}
-
-/**
- * Parse user intent from input
- * 
- * @param {string} userInput - User's input text
- * @param {string|null} sessionId - Optional session ID
- * @param {Array} history - Optional conversation history
- * @returns {Promise<Object>} Intent parse result with session_id
+ * Intent 파싱
  */
 async function parseIntent(userInput, sessionId = null, history = []) {
+    const url = API_CONFIG.INTENT_PARSE;
     const body = {
         user_input: userInput,
-        history: history,
     };
-
+    
+    // session_id가 있을 때만 추가
     if (sessionId) {
         body.session_id = sessionId;
     }
-
-    return await apiFetch('/intent/parse/', {
-        method: 'POST',
-        body: JSON.stringify(body),
-    });
+    
+    // history가 있을 때만 추가
+    if (history && history.length > 0) {
+        body.history = history;
+    }
+    
+    const options = getFetchOptions('POST', body);
+    return await apiCall(url, options);
 }
 
 /**
- * Get context questions for the current session
- * 
- * @param {string} sessionId - Session ID
- * @param {string|null} intentId - Optional intent ID
- * @returns {Promise<Object>} Questions array
+ * 컨텍스트 질문 생성
  */
-async function getQuestions(sessionId, intentId = null) {
+async function generateQuestions(sessionId, intentId = null) {
+    const url = API_CONFIG.CONTEXT_QUESTIONS;
     const body = {
         session_id: sessionId,
     };
-
+    
+    // intent_id가 있으면 추가
     if (intentId) {
         body.intent_id = intentId;
     }
-
-    return await apiFetch('/context/questions/', {
-        method: 'POST',
-        body: JSON.stringify(body),
-    });
+    
+    const options = getFetchOptions('POST', body);
+    
+    return await apiCall(url, options);
 }
 
 /**
- * Submit answer to a context question
- * 
- * @param {string} sessionId - Session ID
- * @param {string} questionText - Question text
- * @param {string} answer - User's answer
- * @returns {Promise<Object>} Success response
+ * 질문 답변
  */
 async function answerQuestion(sessionId, questionText, answer) {
-    return await apiFetch('/context/answer/', {
-        method: 'POST',
-        body: JSON.stringify({
-            session_id: sessionId,
-            question_text: questionText,
-            answer: answer,
-        }),
+    const url = API_CONFIG.ANSWER_QUESTION;
+    const options = getFetchOptions('POST', {
+        session_id: sessionId,
+        question_text: questionText,
+        answer,
     });
+    
+    return await apiCall(url, options);
 }
 
 /**
- * Synthesize optimized prompt
- * 
- * @param {string} sessionId - Session ID
- * @param {string|null} userInput - Optional user input override
- * @param {string|null} outputFormat - Optional output format
- * @returns {Promise<Object>} Synthesized prompt
+ * 프롬프트 합성
  */
 async function synthesizePrompt(sessionId, userInput = null, outputFormat = null) {
+    const url = API_CONFIG.PROMPT_SYNTHESIZE;
+    const options = getFetchOptions('POST', {
+        session_id: sessionId,
+        user_input: userInput,
+        output_format: outputFormat,
+    });
+    
+    return await apiCall(url, options);
+}
+
+/**
+ * LLM 응답 생성
+ */
+async function generateLLMResponse(sessionId, options = {}) {
+    if (!sessionId) {
+        throw new Error('세션 ID가 필요합니다.');
+    }
+    
+    const {
+        prompt = null,
+        userInput = null,
+        quality = 'balanced',
+        temperature = null,
+        maxTokens = null,
+        internetMode = false,
+        specificityLevel = '매우 구체적',
+        preferredModel = null,
+    } = options;
+    
+    const url = API_CONFIG.LLM_GENERATE;
     const body = {
         session_id: sessionId,
+        quality: quality || 'balanced',
+        internet_mode: internetMode || false,
+        specificity_level: specificityLevel || '매우 구체적',
     };
-
+    
+    // 선택적 필드 추가
+    if (prompt) {
+        body.prompt = prompt;
+    }
     if (userInput) {
         body.user_input = userInput;
     }
-
-    if (outputFormat) {
-        body.output_format = outputFormat;
+    if (temperature !== null && temperature !== undefined) {
+        body.temperature = temperature;
     }
-
-    return await apiFetch('/prompt/synthesize/', {
-        method: 'POST',
-        body: JSON.stringify(body),
-    });
+    if (maxTokens !== null && maxTokens !== undefined) {
+        body.max_tokens = maxTokens;
+    }
+    if (preferredModel) {
+        body.preferred_model = preferredModel;
+    }
+    
+    const requestOptions = getFetchOptions('POST', body);
+    return await apiCall(url, requestOptions);
 }
 
 /**
- * Generate LLM response
- * 
- * @param {string} sessionId - Session ID
- * @param {Object} options - Generation options
- * @param {string} options.prompt - Optional custom prompt
- * @param {string} options.userInput - Optional user input
- * @param {string} options.quality - Quality level (fast/balanced/best)
- * @param {number} options.temperature - Temperature (0-1)
- * @param {number} options.maxTokens - Max tokens
- * @param {boolean} options.internetMode - Enable internet search mode (Perplexity Sonar)
- * @param {string} options.specificityLevel - Specificity level (짧음/간결/보통/구체적/매우 구체적)
- * @returns {Promise<Object>} LLM response
- */
-async function generateLLM(sessionId, options = {}) {
-    const body = {
-        session_id: sessionId,
-        quality: options.quality || 'balanced',
-    };
-
-    if (options.prompt) {
-        body.prompt = options.prompt;
-    }
-
-    if (options.userInput) {
-        body.user_input = options.userInput;
-    }
-
-    if (options.temperature !== undefined) {
-        body.temperature = options.temperature;
-    }
-
-    if (options.maxTokens) {
-        body.max_tokens = options.maxTokens;
-    }
-
-    if (options.internetMode !== undefined) {
-        body.internet_mode = options.internetMode;
-    }
-
-    if (options.specificityLevel) {
-        body.specificity_level = options.specificityLevel;
-    }
-
-    if (options.preferred_model) {
-        body.preferred_model = options.preferred_model;
-    }
-
-    return await apiFetch('/llm/generate/', {
-        method: 'POST',
-        body: JSON.stringify(body),
-    });
-}
-
-/**
- * Submit feedback for a response
- * 
- * @param {string} sessionId - Session ID
- * @param {string} feedbackText - Feedback text
- * @param {string} sentiment - Sentiment (positive/negative/neutral)
- * @param {string|null} promptHistoryId - Optional prompt history ID
- * @returns {Promise<Object>} Feedback response
+ * 피드백 제출
  */
 async function submitFeedback(sessionId, feedbackText, sentiment = 'neutral', promptHistoryId = null) {
-    const body = {
+    const url = API_CONFIG.FEEDBACK;
+    const options = getFetchOptions('POST', {
         session_id: sessionId,
         feedback_text: feedbackText,
-        sentiment: sentiment,
-    };
-
-    if (promptHistoryId) {
-        body.prompt_history_id = promptHistoryId;
-    }
-
-    return await apiFetch('/feedback/', {
-        method: 'POST',
-        body: JSON.stringify(body),
+        sentiment,
+        prompt_history_id: promptHistoryId,
     });
+    
+    return await apiCall(url, options);
 }
-
-/**
- * Get session summary
- * 
- * @param {string} sessionId - Session ID
- * @returns {Promise<Object>} Session summary
- */
-async function getSessionSummary(sessionId) {
-    return await apiFetch(`/sessions/${sessionId}/summary/`, {
-        method: 'GET',
-    });
-}
-
-/**
- * Get session details
- * 
- * @param {string} sessionId - Session ID
- * @returns {Promise<Object>} Session details
- */
-async function getSession(sessionId) {
-    return await apiFetch(`/sessions/${sessionId}/`, {
-        method: 'GET',
-    });
-}
-
-/**
- * Get prompt history for a session
- * 
- * @param {string} sessionId - Session ID
- * @returns {Promise<Array>} Prompt history
- */
-async function getPromptHistory(sessionId) {
-    return await apiFetch(`/prompt-history/?session_id=${sessionId}`, {
-        method: 'GET',
-    });
-}
-
-/**
- * Set user's initial goal for a session
- * 
- * @param {string} sessionId - Session ID
- * @param {string} goal - User's goal (알기/하기/만들기/배우기)
- * @returns {Promise<Object>} Success response
- */
-async function setGoal(sessionId, goal) {
-    return await apiFetch(`/sessions/${sessionId}/set_goal/`, {
-        method: 'POST',
-        body: JSON.stringify({
-            goal: goal,
-        }),
-    });
-}
-
-// Export API functions
-window.LoomonAIAPI = {
-    parseIntent,
-    getQuestions,
-    answerQuestion,
-    synthesizePrompt,
-    generateLLM,
-    submitFeedback,
-    getSessionSummary,
-    getSession,
-    getPromptHistory,
-    setGoal,
-};
 

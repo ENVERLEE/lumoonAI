@@ -30,7 +30,19 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-2gnul99so-aedwff30o3=e_8$a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else ['*']
+# ALLOWED_HOSTS 설정
+# 환경 변수가 설정되어 있으면 사용하되, 개발 환경에서는 localhost도 추가
+allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '').strip()
+if allowed_hosts_env:
+    ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(',') if h.strip()]
+    # 개발 환경을 위해 localhost도 항상 추가
+    if 'localhost' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('localhost')
+    if '127.0.0.1' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('127.0.0.1')
+else:
+    # 개발 환경 기본값
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
 
 
 # Application definition
@@ -71,7 +83,7 @@ ROOT_URLCONF = 'prompt_mate.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # Frontend templates removed - using Next.js now
+        'DIRS': [],  # Frontend is served separately
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -163,10 +175,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Railway 배포용
 STATICFILES_DIRS = [
-    # Frontend files removed - using Next.js now
+    # Frontend files are served separately
 ]
 
 # WhiteNoise 설정 (Railway 배포용)
@@ -197,13 +209,15 @@ REST_FRAMEWORK = {
 }
 
 # CORS 설정
-CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
+CORS_ALLOW_ALL_ORIGINS = True  # 모든 origin 허용
 CORS_ALLOW_CREDENTIALS = True
-# Next.js 프론트엔드 허용
+# 프론트엔드 서버 허용 (기본적으로 개발 서버 포트들)
 CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8001',
+    'http://127.0.0.1:8001',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-] + (os.getenv('CORS_EXTRA_ORIGINS', '').split(',') if os.getenv('CORS_EXTRA_ORIGINS') else [])
+] + ([origin for origin in os.getenv('CORS_EXTRA_ORIGINS', '').split(',') if origin] if os.getenv('CORS_EXTRA_ORIGINS') else [])
 
 # Prompt Mate 커스텀 설정
 PROMPT_MATE = {

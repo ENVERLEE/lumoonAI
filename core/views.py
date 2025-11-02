@@ -314,8 +314,27 @@ class ContextQuestionsView(APIView):
             # Session Manager
             session_manager = SessionManager(session_id=session_id)
             
+            # Intent 가져오기
+            intent = None
+            if intent_id:
+                try:
+                    from core.models import Intent
+                    intent_model = Intent.objects.get(id=intent_id, session_id=session_id)
+                    from core.intent_parser import IntentParseResult
+                    intent = IntentParseResult(
+                        cognitive_goal=intent_model.cognitive_goal,
+                        specificity=intent_model.specificity,
+                        completeness=intent_model.completeness,
+                        primary_entities=intent_model.primary_entities,
+                        constraints=intent_model.constraints,
+                        confidence=intent_model.confidence
+                    )
+                    logger.info(f"Intent ID로 Intent 로드: {intent_id}")
+                except Intent.DoesNotExist:
+                    logger.warning(f"Intent를 찾을 수 없음: {intent_id}, 최근 Intent 사용 시도")
+            
             # 질문 생성
-            questions = session_manager.generate_questions()
+            questions = session_manager.generate_questions(intent=intent)
             
             # 응답
             question_items = [
@@ -337,10 +356,17 @@ class ContextQuestionsView(APIView):
             response_serializer = ContextQuestionsResponseSerializer(response_data)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         
+        except ValueError as e:
+            # Intent가 없는 경우 등
+            logger.warning(f"질문 생성 실패 (ValueError): {e}")
+            return Response(
+                {'error': str(e), 'detail': 'Intent가 없거나 세션이 초기화되지 않았습니다. Intent 파싱을 먼저 수행하세요.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
             logger.error(f"질문 생성 실패: {e}", exc_info=True)
             return Response(
-                {'error': str(e)},
+                {'error': str(e), 'detail': '질문 생성 중 오류가 발생했습니다.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -445,6 +471,7 @@ class LLMGenerateView(APIView):
         """LLM으로 응답 생성"""
         serializer = LLMGenerateRequestSerializer(data=request.data)
         if not serializer.is_valid():
+            logger.error(f"LLM 생성 요청 검증 실패: {serializer.errors}, 요청 데이터: {request.data}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         data = serializer.validated_data
